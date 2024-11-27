@@ -5,8 +5,13 @@ name = "pypi"
 
 [packages]
 django = "*"
-djangorestframework = "*"
-djoser = "*"
+graphene-django = "*"
+django-graphql-jwt = "*"
+django-allauth = "*"
+django-graphql-auth = "*"
+channels = "*"
+channels-redis = "*"
+graphql-ws = "*"
 
 [dev-packages]
 
