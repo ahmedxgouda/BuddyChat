@@ -13,6 +13,8 @@ channels = "*"
 channels-redis = "*"
 graphql-ws = "*"
 graphql-core = "*"
+pillow = "*"
+mysqlclient = "*"
 
 [dev-packages]
 
