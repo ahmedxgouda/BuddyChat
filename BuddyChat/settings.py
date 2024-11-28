@@ -147,3 +147,5 @@ AUTHENTICATION_BACKENDS = (
 )
 
 # TODO: Configure graphql-auth and allauth
+
+SITE_ID = 1
