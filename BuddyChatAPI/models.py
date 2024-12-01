@@ -24,8 +24,8 @@ class Message(models.Model):
         ordering = ('date',)
         
 class Chat(models.Model):
-    user1 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user1', db_index=True)
-    user2 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user2', db_index=True)
+    user1 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user1_chats', db_index=True)
+    user2 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user2_chats', db_index=True)
     archived = models.BooleanField(default=False, db_index=True)
     last_message = models.ForeignKey('ChatMessage', on_delete=models.SET_NULL, null=True, related_name='last_message')
     
