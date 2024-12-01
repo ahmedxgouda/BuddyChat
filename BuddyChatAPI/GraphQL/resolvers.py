@@ -1,10 +1,10 @@
 from ..models import *
 
 def get_users():
-    return CustomUser.objects.all().select_related('sent_messages', 'received_messages', 'user1_chats', 'user2_chats', 'created_groups', 'user_groups', 'notifications')
+    return CustomUser.objects.all()
 
 def get_chats():
-    return Chat.objects.all().select_related('last_message')
+    return Chat.objects.all()
 
 def get_user_groups():
     return UserGroup.objects.all()

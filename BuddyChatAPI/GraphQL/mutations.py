@@ -1,9 +1,8 @@
 from django.shortcuts import get_object_or_404
-from graphene_django import DjangoObjectType
 import graphene
 from ..models import *
-from .types import CustomUserType, MessageType
-from ..validators import validate_user_data, validate_message_content
+from .types import CustomUserType, MessageType, ChatType, UserGroupType
+from .validators import validate_user_data, validate_message_content, validate_chat_users
 import bleach
 
 class CreateUser(graphene.Mutation):
@@ -39,3 +38,18 @@ class CreateMessage(graphene.Mutation):
         message = Message.objects.create(sender=sender, receiver=receiver, content=content)
         message.save()
         return CreateMessage(message=message)
+
+class CreateChat(graphene.Mutation):
+    class Arguments:
+        user1_id = graphene.Int()
+        user2_id = graphene.Int()
+        
+    chat = graphene.Field(ChatType)
+    
+    def mutate(self, info, user1_id, user2_id):
+        user1 = get_object_or_404(CustomUser, pk=user1_id)
+        user2 = get_object_or_404(CustomUser, pk=user2_id)
+        validate_chat_users(user1, user2)
+        chat = Chat.objects.create(user1=user1, user2=user2)
+        chat.save()
+        return CreateChat(chat=chat)

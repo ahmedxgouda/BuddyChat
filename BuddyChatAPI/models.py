@@ -33,6 +33,10 @@ class Chat(models.Model):
         return f'{self.user1} - {self.user2}'
     
     class Meta:
+        unique_together = ('user1', 'user2')
+        ordering = ('-last_message__message__date',)
+    
+    class Meta:
         ordering = ('-last_message__message__date',)
 
 class ChatMessage(models.Model):

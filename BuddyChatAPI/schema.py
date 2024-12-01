@@ -2,7 +2,7 @@ import graphene
 from graphene_django import DjangoListField
 from .GraphQL.connections import CustomUserConnection, ChatConnection, UserGroupConnection
 from .GraphQL.types import CustomUserType, ChatType, UserGroupType, NotificationType
-from .GraphQL.mutations import CreateUser, CreateMessage
+from .GraphQL.mutations import CreateUser, CreateMessage, CreateChat
 from .GraphQL.resolvers import get_chat, get_user_group, get_user, get_users, get_chats, get_user_groups
     
 class Query(graphene.ObjectType):
@@ -36,6 +36,7 @@ class Query(graphene.ObjectType):
 class Mutation(graphene.ObjectType):
     create_user = CreateUser.Field()
     create_message = CreateMessage.Field()
+    create_chat = CreateChat.Field()
     
 schema = graphene.Schema(query=Query, mutation=Mutation)
 

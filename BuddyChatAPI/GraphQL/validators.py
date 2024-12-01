@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from .models import CustomUser
+from ..models import CustomUser, Chat
 
 def validate_user_data(username, email, password, phone, first_name, last_name):
     
@@ -23,3 +23,7 @@ def validate_message_content(content):
     if len(content) < 1:
         raise ValidationError('Message content cannot be empty')
     return True
+
+def validate_chat_users(user1, user2):
+    if Chat.objects.filter(user1=user1, user2=user2).exists() or Chat.objects.filter(user1=user2, user2=user1).exists():
+        raise ValidationError('Chat already exists')
