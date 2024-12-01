@@ -36,8 +36,8 @@ class Chat(models.Model):
         ordering = ('-last_message__message__date',)
 
 class ChatMessage(models.Model):
-    message = models.ForeignKey(Message, on_delete=models.CASCADE)
-    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='chat_messages')
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='chat_messages')
     
 class UserGroup(models.Model):
     title = models.CharField(max_length=100, db_index=True)
