@@ -13,6 +13,7 @@ graphql-core = "*"
 pillow = "*"
 mysqlclient = "*"
 django-filter = "*"
+bleach = "*"
 
 [dev-packages]
 

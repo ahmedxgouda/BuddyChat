@@ -5,8 +5,8 @@ from django.contrib.auth.models import AbstractUser
 
 class CustomUser(AbstractUser):
     phone = models.CharField(max_length=15)
-    bio = models.TextField(max_length=500, blank=True)
-    profile_pic = models.ImageField(upload_to='profile_pics')
+    bio = models.TextField(max_length=500, blank=True, default='')
+    profile_pic = models.ImageField(upload_to='profile_pics/', default='profile_pics/default.svg')
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
@@ -14,8 +14,8 @@ class CustomUser(AbstractUser):
     
     
 class Message(models.Model):
-    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='sender')
-    receiver = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name='receiver')
+    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name='received_messages')
     content = models.TextField()
     date = models.DateTimeField(auto_now_add=True, db_index=True)
     read_at = models.DateTimeField(null=True, db_index=True)
@@ -45,7 +45,7 @@ class UserGroup(models.Model):
     members_count = models.IntegerField(default=0)
     archived = models.BooleanField(default=False, db_index=True)
     created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='created_groups')
-    group_image = models.ImageField(upload_to='group_images')
+    group_image = models.ImageField(upload_to='group_images', default='group_images/default.svg')
     updated_at = models.DateTimeField(auto_now=True)
     last_message = models.ForeignKey('GroupMessage', on_delete=models.SET_NULL, null=True, related_name='last_message')
     class Meta:

@@ -1,12 +1,31 @@
 import graphene
 from graphene_django import DjangoObjectType, DjangoListField
 from .models import *
+from .validators import validate_user_data, validate_message_content
+from django.shortcuts import get_object_or_404
+import bleach
 
 class CustomUserType(DjangoObjectType):
     class Meta:
         model = CustomUser
         exclude = ('password',)
         
+class CreateUser(graphene.Mutation):
+    class Arguments:
+        username = graphene.String()
+        email = graphene.String()
+        password = graphene.String()
+        phone = graphene.String()
+        first_name = graphene.String()
+        last_name = graphene.String()
+        
+    user = graphene.Field(CustomUserType)
+    
+    def mutate(self, info, username, email, password, phone, first_name, last_name):
+        validate_user_data(username, email, password, phone, first_name, last_name)
+        user = CustomUser.objects.create_user(username=username, email=email, password=password, phone=phone, first_name=first_name, last_name=last_name)
+        user.save()
+        return CreateUser(user=user)
 class CustomUserConnection(graphene.relay.Connection):
     class Meta:
         node = CustomUserType
@@ -16,6 +35,23 @@ class MessageType(DjangoObjectType):
         model = Message
         fields = "__all__"
         
+class CreateMessage(graphene.Mutation):
+    class Arguments:
+        sender_id = graphene.Int()
+        receiver_id = graphene.Int()
+        content = graphene.String()
+        
+    message = graphene.Field(MessageType)
+    
+    def mutate(self, info, sender_id, receiver_id, content):
+        sender = get_object_or_404(CustomUser, pk=sender_id)
+        receiver = get_object_or_404(CustomUser, pk=receiver_id)
+        content = bleach.clean(content)
+        validate_message_content(content)
+        message = Message.objects.create(sender=sender, receiver=receiver, content=content)
+        message.save()
+        return CreateMessage(message=message)
+
 class ChatType(DjangoObjectType):
     class Meta:
         model = Chat
@@ -85,5 +121,9 @@ class Query(graphene.ObjectType):
     def resolve_user(self, info, id):
         return CustomUser.objects.get(pk=id)
     
-schema = graphene.Schema(query=Query)
+class Mutation(graphene.ObjectType):
+    create_user = CreateUser.Field()
+    create_message = CreateMessage.Field()
+    
+schema = graphene.Schema(query=Query, mutation=Mutation)
 
