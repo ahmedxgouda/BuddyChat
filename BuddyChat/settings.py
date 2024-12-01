@@ -41,10 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'BuddyChatAPI',
     'graphene_django',
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'graphql_auth'
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -55,7 +52,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware'
 ]
 
 ROOT_URLCONF = 'BuddyChat.urls'
@@ -143,9 +139,4 @@ GRAPHENE = {
 
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
 )
-
-# TODO: Configure graphql-auth and allauth
-
-SITE_ID = 1

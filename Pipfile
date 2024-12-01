@@ -6,15 +6,13 @@ name = "pypi"
 [packages]
 django = "*"
 graphene-django = "*"
-django-graphql-jwt = "*"
-django-allauth = "*"
-django-graphql-auth = "*"
 channels = "*"
 channels-redis = "*"
 graphql-ws = "*"
 graphql-core = "*"
 pillow = "*"
 mysqlclient = "*"
+django-filter = "*"
 
 [dev-packages]
 
