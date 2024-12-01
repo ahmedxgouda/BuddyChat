@@ -27,3 +27,17 @@ def validate_message_content(content):
 def validate_chat_users(user1, user2):
     if Chat.objects.filter(user1=user1, user2=user2).exists() or Chat.objects.filter(user1=user2, user2=user1).exists():
         raise ValidationError('Chat already exists')
+    
+def validate_group_member(user_group, member):
+    if user_group.members.filter(pk=member.pk).exists():
+        raise ValidationError('User is already a member of this group')
+    return True
+
+def validate_chat_message(chat: Chat, sender_id, receiver_id):
+    # Case 1: A user is trying to send a message to themselves
+    # Case 2: A user is trying to send a message to a user who is not a member of the chat
+    if chat.user1.pk == sender_id and chat.user2.pk == receiver_id:
+        return True
+    if chat.user1.pk == receiver_id and chat.user2.pk == sender_id:
+        return True
+    raise ValidationError(f'A user is not a member of this chat')

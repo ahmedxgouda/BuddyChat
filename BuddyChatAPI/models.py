@@ -45,7 +45,7 @@ class ChatMessage(models.Model):
     
 class UserGroup(models.Model):
     title = models.CharField(max_length=100, db_index=True)
-    description = models.TextField()
+    description = models.TextField(default='')
     members_count = models.IntegerField(default=0)
     archived = models.BooleanField(default=False, db_index=True)
     created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='created_groups')

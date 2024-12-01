@@ -1,10 +1,29 @@
 from django.shortcuts import get_object_or_404
 import graphene
 from ..models import *
-from .types import CustomUserType, MessageType, ChatType, UserGroupType
-from .validators import validate_user_data, validate_message_content, validate_chat_users
+from .types import *
+from .validators import *
 import bleach
 
+def create_message(sender_id, receiver_id, content):
+    sender = get_object_or_404(CustomUser, pk=sender_id)
+    receiver = get_object_or_404(CustomUser, pk=receiver_id)
+    content = bleach.clean(content)
+    validate_message_content(content)
+    message = Message.objects.create(sender=sender, receiver=receiver, content=content)
+    message.save()
+    return message
+
+def create_group_member(user_group_id, member_id):
+    user_group = get_object_or_404(UserGroup, pk=user_group_id)
+    member = get_object_or_404(CustomUser, pk=member_id)
+    validate_group_member(user_group, member)
+    group_member = GroupMember.objects.create(user_group=user_group, member=member)
+    group_member.save()
+    user_group.members_count += 1
+    user_group.save()
+    return group_member
+    
 class CreateUser(graphene.Mutation):
     class Arguments:
         username = graphene.String()
@@ -21,24 +40,6 @@ class CreateUser(graphene.Mutation):
         user = CustomUser.objects.create_user(username=username, email=email, password=password, phone=phone, first_name=first_name, last_name=last_name)
         user.save()
         return CreateUser(user=user)
-
-class CreateMessage(graphene.Mutation):
-    class Arguments:
-        sender_id = graphene.Int()
-        receiver_id = graphene.Int()
-        content = graphene.String()
-        
-    message = graphene.Field(MessageType)
-    
-    def mutate(self, info, sender_id, receiver_id, content):
-        sender = get_object_or_404(CustomUser, pk=sender_id)
-        receiver = get_object_or_404(CustomUser, pk=receiver_id)
-        content = bleach.clean(content)
-        validate_message_content(content)
-        message = Message.objects.create(sender=sender, receiver=receiver, content=content)
-        message.save()
-        return CreateMessage(message=message)
-
 class CreateChat(graphene.Mutation):
     class Arguments:
         user1_id = graphene.Int()
@@ -53,3 +54,62 @@ class CreateChat(graphene.Mutation):
         chat = Chat.objects.create(user1=user1, user2=user2)
         chat.save()
         return CreateChat(chat=chat)
+    
+class CreateChatMessage(graphene.Mutation):
+    class Arguments:
+        chat_id = graphene.Int()
+        sender_id = graphene.Int()
+        receiver_id = graphene.Int()
+        content = graphene.String()
+        
+    chat_message = graphene.Field(ChatMessageType)
+    
+    def mutate(self, info, chat_id, sender_id, content, receiver_id):
+        chat = get_object_or_404(Chat, pk=chat_id)
+        validate_chat_message(chat, sender_id, receiver_id)
+        message = create_message(sender_id, receiver_id, content)
+        chat_message = ChatMessage.objects.create(chat=chat, message=message)
+        chat_message.save()
+        return CreateChatMessage(chat_message=chat_message)
+    
+class CreateGroup(graphene.Mutation):
+    class Arguments:
+        title = graphene.String()
+        created_by_id = graphene.Int()
+        
+    user_group = graphene.Field(UserGroupType)
+    
+    def mutate(self, info, title, created_by_id):
+        created_by = get_object_or_404(CustomUser, pk=created_by_id)
+        user_group = UserGroup.objects.create(title=title, created_by=created_by)
+        user_group.save()
+        create_group_member(user_group.id, created_by_id)
+        return CreateGroup(user_group=user_group)
+    
+class CreateGroupMessage(graphene.Mutation):
+    class Arguments:
+        user_group_id = graphene.Int()
+        sender_id = graphene.Int()
+        content = graphene.String()
+        
+    group_message = graphene.Field(GroupMessageType)
+    
+    def mutate(self, info, user_group_id, sender_id, content):
+        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+        content = bleach.clean(content)
+        validate_message_content(content)
+        message = create_message(sender_id, None, content)
+        group_message = GroupMessage.objects.create(user_group=user_group, message=message)
+        group_message.save()
+        return CreateGroupMessage(group_message=group_message)
+    
+class CreateGroupMember(graphene.Mutation):
+    class Arguments:
+        user_group_id = graphene.Int()
+        member_id = graphene.Int()
+        
+    group_member = graphene.Field(GroupMemberType)
+    
+    def mutate(self, info, user_group_id, member_id):
+        group_member = create_group_member(user_group_id, member_id)
+        return CreateGroupMember(group_member=group_member)
