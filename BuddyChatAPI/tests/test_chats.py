@@ -1,5 +1,5 @@
 from graphene_django.utils.testing import GraphQLTestCase
-from ..models import Chat, CustomUser, ChatMessage, Message
+from ..models import Chat, CustomUser, ChatMessage, Message, Notification
 
 class ChatTestCase(GraphQLTestCase):
     def setUp(self):
@@ -147,6 +147,12 @@ class ChatTestCase(GraphQLTestCase):
         self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['content'], 'Hello')
         self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['sender']['username'], 'test')
         self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['receiver']['username'], 'test1')
+        
+        # Check if notification was created
+        self.assertEqual(Notification.objects.count(), 1)
+        notification = Notification.objects.first()
+        self.assertEqual(notification.receiver.id, self.user2.id)
+        self.assertEqual(notification.message.id, int(content['data']['createChatMessage']['chatMessage']['message']['id']))
         
     def test_create_chat_message_invalid_chat(self):
         response = self.query(

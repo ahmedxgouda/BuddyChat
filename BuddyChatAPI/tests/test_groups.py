@@ -139,6 +139,30 @@ class GroupTestCase(GraphQLTestCase):
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createGroupMessage']['groupMessage']['message']['sender']['id'], str(self.user1.id))
+        # Check if the notification was created
+        notificationsResponse = self.query(
+            '''
+            query {
+                users {
+                    edges {
+                        node {
+                            notifications {
+                                id
+                                message {
+                                    id
+                                    content
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            '''
+        )
+        notificationsContent = notificationsResponse.json()
+        self.assertResponseNoErrors(notificationsResponse)
+        allNotifications = [notification for user in notificationsContent['data']['users']['edges'] for notification in user['node']['notifications']]
+        self.assertEqual(len(allNotifications), 3)
         
     def test_create_group_member(self):
         response = self.query(

@@ -70,6 +70,9 @@ class CreateChatMessage(graphene.Mutation):
         message = create_message(sender_id, receiver_id, content)
         chat_message = ChatMessage.objects.create(chat=chat, message=message)
         chat_message.save()
+        receiver = get_object_or_404(CustomUser, pk=receiver_id)
+        notification = Notification.objects.create(receiver=receiver, message=message)
+        notification.save()
         return CreateChatMessage(chat_message=chat_message)
     
 class CreateGroup(graphene.Mutation):
@@ -103,6 +106,14 @@ class CreateGroupMessage(graphene.Mutation):
         message = create_message(sender_id, None, content)
         group_message = GroupMessage.objects.create(user_group=user_group, message=message)
         group_message.save()
+        # Update last message of the group
+        user_group.last_message = group_message
+        user_group.save()
+        # Send notifications to group members
+        for group_member in user_group.members.all():
+            if group_member.member.id != sender_id:
+                notification = Notification.objects.create(receiver=group_member.member, message=message)
+                notification.save()
         return CreateGroupMessage(group_message=group_message)
     
 class CreateGroupMember(graphene.Mutation):
@@ -129,3 +140,14 @@ class AssignAdmin(graphene.Mutation):
         group_member.is_admin = True
         group_member.save()
         return AssignAdmin(group_member=group_member)
+
+class SetNotificationAsRead(graphene.Mutation):
+    class Arguments:
+        notification_id = graphene.Int()
+        
+    notification = graphene.Field(NotificationType)
+    
+    def mutate(self, info, notification_id):
+        notification = get_object_or_404(Notification, pk=notification_id)
+        notification.is_read = True
+        return SetNotificationAsRead(notification=notification)
