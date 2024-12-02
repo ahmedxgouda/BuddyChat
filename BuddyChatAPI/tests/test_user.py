@@ -1,5 +1,6 @@
-from .models import *
+from ..models import CustomUser
 from graphene_django.utils.testing import GraphQLTestCase
+
 # Create your tests here.
 
 class UserTestCase(GraphQLTestCase):
@@ -71,21 +72,24 @@ class UserTestCase(GraphQLTestCase):
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Invalid email: a@g']")
     
     def test_create_user_invalid_phone(self):
         response = self.query(query=self.create_user_mutation, variables={'username': 'test2', 'email': 'a@g.com', 'password': '123456789Test', 'phone': '+20123456789', 'firstName': 'test2', 'lastName': 'test2'})
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Phone number must be 13 characters long']")
         
     def test_create_user_invalid_password_letters_only(self):
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@g.com', 'password': 'aaaaaa', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
+            variables={'username': 'test2', 'email': 'a@g.com', 'password': 'aaaaaaaa', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
         )
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Password must contain at least one digit']")
         
     def test_create_user_invalid_password_numbers_only(self):
         response = self.query(
@@ -95,6 +99,7 @@ class UserTestCase(GraphQLTestCase):
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Password must contain at least one letter']")
         
     def test_create_user_invalid_password_no_uppercase(self):
         response = self.query(
@@ -104,6 +109,7 @@ class UserTestCase(GraphQLTestCase):
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Password must contain at least one uppercase letter']")
         
     def test_create_user_invalid_password_no_lowercase(self):
         response = self.query(
@@ -113,6 +119,7 @@ class UserTestCase(GraphQLTestCase):
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Password must contain at least one lowercase letter']")
         
         
     def test_create_user_invalid_username(self):
@@ -123,6 +130,7 @@ class UserTestCase(GraphQLTestCase):
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Username must be at least 4 characters long']")
         
     def test_create_user_invalid_first_name(self):
         response = self.query(
@@ -132,15 +140,17 @@ class UserTestCase(GraphQLTestCase):
         
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['First name must be at least 2 characters long']")
         
     def test_create_user_invalid_last_name(self):
         response = self.query(
-            query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 't'}
-        )
-        
+                query=self.create_user_mutation, 
+                variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 't'}
+            )
+                
         content = response.json()
         self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], "['Last name must be at least 2 characters long']")
         
     def test_create_user(self):
         response = self.query(
