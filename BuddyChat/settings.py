@@ -137,7 +137,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 GRAPHENE = {
-    'SCHEMA': 'BuddyChatAPI.schema.schema',
+    'SCHEMA': 'BuddyChatAPI.GraphQL.schema.schema'
 }
 
 AUTHENTICATION_BACKENDS = (

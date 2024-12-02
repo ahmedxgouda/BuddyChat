@@ -1,7 +1,7 @@
 from ..models import *
 
 def get_users():
-    return CustomUser.objects.all()
+    return CustomUser.objects.filter(is_staff=False)
 
 def get_chats():
     return Chat.objects.all()

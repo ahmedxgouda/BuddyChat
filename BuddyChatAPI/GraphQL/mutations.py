@@ -81,6 +81,8 @@ class CreateGroup(graphene.Mutation):
     
     def mutate(self, info, title, created_by_id):
         created_by = get_object_or_404(CustomUser, pk=created_by_id)
+        validate_group_title(title)
+        title = bleach.clean(title)
         user_group = UserGroup.objects.create(title=title, created_by=created_by)
         user_group.save()
         create_group_member(user_group.id, created_by_id)

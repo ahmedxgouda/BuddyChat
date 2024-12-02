@@ -1,9 +1,9 @@
 import graphene
 from graphene_django import DjangoListField
-from .GraphQL.connections import CustomUserConnection, ChatConnection, UserGroupConnection
-from .GraphQL.types import CustomUserType, ChatType, UserGroupType, NotificationType
-from .GraphQL.mutations import *
-from .GraphQL.resolvers import get_chat, get_user_group, get_user, get_users, get_chats, get_user_groups
+from .connections import CustomUserConnection, ChatConnection, UserGroupConnection
+from .types import CustomUserType, ChatType, UserGroupType, NotificationType
+from .mutations import *
+from .resolvers import get_chat, get_user_group, get_user, get_users, get_chats, get_user_groups
     
 class Query(graphene.ObjectType):
     users = graphene.relay.ConnectionField(CustomUserConnection)
