@@ -14,11 +14,11 @@ def create_message(sender_id, receiver_id, content):
     message.save()
     return message
 
-def create_group_member(user_group_id, member_id):
+def create_group_member(user_group_id, member_id, is_admin=False):
     user_group = get_object_or_404(UserGroup, pk=user_group_id)
     member = get_object_or_404(CustomUser, pk=member_id)
     validate_group_member(user_group, member)
-    group_member = GroupMember.objects.create(user_group=user_group, member=member)
+    group_member = GroupMember.objects.create(user_group=user_group, member=member, is_admin=is_admin)
     group_member.save()
     user_group.members_count += 1
     user_group.save()
@@ -85,7 +85,7 @@ class CreateGroup(graphene.Mutation):
         title = bleach.clean(title)
         user_group = UserGroup.objects.create(title=title, created_by=created_by)
         user_group.save()
-        create_group_member(user_group.id, created_by_id)
+        create_group_member(user_group.id, created_by_id, is_admin=True)
         return CreateGroup(user_group=user_group)
     
 class CreateGroupMessage(graphene.Mutation):
