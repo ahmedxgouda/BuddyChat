@@ -66,6 +66,7 @@ class GroupMember(models.Model):
     user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, related_name='members')
     member = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_groups')
     joined_at = models.DateTimeField(auto_now_add=True)
+    is_admin = models.BooleanField(default=False)
     
     class Meta:
         unique_together = ('user_group', 'member')
