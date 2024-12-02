@@ -40,6 +40,7 @@ class Mutation(graphene.ObjectType):
     create_group = CreateGroup.Field()
     create_group_message = CreateGroupMessage.Field()
     create_group_member = CreateGroupMember.Field()
+    assign_admin = AssignAdmin.Field()
     
 schema = graphene.Schema(query=Query, mutation=Mutation)
 

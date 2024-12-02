@@ -1,4 +1,4 @@
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from ..models import CustomUser, Chat
 from django.core.validators import validate_email
 
@@ -67,3 +67,11 @@ def validate_group_title(title):
     if len(title) < 2:
         raise ValidationError('Group title must be at least 2 characters long')
     return True
+
+def validate_admin_assignment(user_group, member, user_adding):
+    if not user_group.members.filter(pk=user_adding.pk, is_admin=True).exists():
+        raise PermissionDenied('Only group admins can assign admin roles')
+    if user_group.members.filter(pk=member.pk, is_admin=True).exists():
+        raise ValidationError('User is already an admin')
+    return True
+    

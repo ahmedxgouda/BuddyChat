@@ -7,7 +7,7 @@ import bleach
 
 def create_message(sender_id, receiver_id, content):
     sender = get_object_or_404(CustomUser, pk=sender_id)
-    receiver = get_object_or_404(CustomUser, pk=receiver_id)
+    receiver = get_object_or_404(CustomUser, pk=receiver_id) if receiver_id else None
     content = bleach.clean(content)
     validate_message_content(content)
     message = Message.objects.create(sender=sender, receiver=receiver, content=content)
@@ -115,3 +115,17 @@ class CreateGroupMember(graphene.Mutation):
     def mutate(self, info, user_group_id, member_id):
         group_member = create_group_member(user_group_id, member_id)
         return CreateGroupMember(group_member=group_member)
+
+class AssignAdmin(graphene.Mutation):
+    class Arguments:
+        user_group_id = graphene.Int()
+        member_id = graphene.Int()
+        
+    group_member = graphene.Field(GroupMemberType)
+    
+    def mutate(self, info, user_group_id, member_id):
+        group_member = get_object_or_404(GroupMember, user_group_id=user_group_id, member_id=member_id)
+        validate_admin_assignment(group_member, user_group_id, info.context.user)
+        group_member.is_admin = True
+        group_member.save()
+        return AssignAdmin(group_member=group_member)
