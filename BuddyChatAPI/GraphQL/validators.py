@@ -54,14 +54,12 @@ def validate_group_member(user_group, member):
         raise ValidationError('User is already a member of this group')
     return True
 
-def validate_chat_message(chat: Chat, sender_id, receiver_id):
+def validate_chat_message(chat: Chat, sender_id):
     # Case 1: A user is trying to send a message to themselves
     # Case 2: A user is trying to send a message to a user who is not a member of the chat
-    if chat.user1.pk == sender_id and chat.user2.pk == receiver_id:
-        return True
-    if chat.user1.pk == receiver_id and chat.user2.pk == sender_id:
-        return True
-    raise ValidationError(f'A user is not a member of this chat')
+    if chat.user1_id != sender_id and chat.user2_id != sender_id:
+        raise ValidationError(f'A user is not a member of this chat')
+    return True
 
 def validate_group_title(title):
     if len(title) < 2:

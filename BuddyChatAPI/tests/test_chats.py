@@ -20,9 +20,9 @@ class ChatTestCase(GraphQLTestCase):
         self.chat3 = Chat.objects.create(user1=self.user1, user2=self.user4)
         self.chat3.save()
         # Create messages and chat messages
-        self.message1 = Message.objects.create(sender=self.user1, receiver=self.user2, content='Hello')
-        self.message2 = Message.objects.create(sender=self.user1, receiver=self.user3, content='Hello')
-        self.message3 = Message.objects.create(sender=self.user1, receiver=self.user4, content='Hello')
+        self.message1 = Message.objects.create(sender=self.user1, content='Hello')
+        self.message2 = Message.objects.create(sender=self.user1, content='Hello')
+        self.message3 = Message.objects.create(sender=self.user1, content='Hello')
         self.message1.save()
         self.message2.save()
         self.message3.save()
@@ -52,8 +52,8 @@ class ChatTestCase(GraphQLTestCase):
             }
         '''
         self.create_chat_message_mutation = '''
-            mutation CreateChatMessage($chatId: Int!, $senderId: Int!, $receiverId: Int!, $content: String!) {
-                createChatMessage(chatId: $chatId, senderId: $senderId, receiverId: $receiverId, content: $content) {
+            mutation CreateChatMessage($chatId: Int!, $senderId: Int!, $content: String!) {
+                createChatMessage(chatId: $chatId, senderId: $senderId, content: $content) {
                     chatMessage {
                         id
                         chat {
@@ -62,10 +62,6 @@ class ChatTestCase(GraphQLTestCase):
                         message {
                             id
                             sender {
-                                id
-                                username
-                            }
-                            receiver {
                                 id
                                 username
                             }
@@ -121,7 +117,7 @@ class ChatTestCase(GraphQLTestCase):
                 }
             }
             ''',
-            variables={'id': self.chat1.id}
+            variables={'id': self.chat1.id},
         )
         content = response.json()
         self.assertResponseNoErrors(response)
@@ -140,13 +136,12 @@ class ChatTestCase(GraphQLTestCase):
     def test_create_chat_message(self):
         response = self.query(
             self.create_chat_message_mutation,
-            variables={'chatId': self.chat1.id, 'senderId': self.user1.id, 'receiverId': self.user2.id, 'content': 'Hello'}
+            variables={'chatId': self.chat1.id, 'senderId': self.user1.id, 'content': 'Hello'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['content'], 'Hello')
         self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['sender']['username'], 'test')
-        self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['receiver']['username'], 'test1')
         
         # Check if notification was created
         self.assertEqual(Notification.objects.count(), 1)
@@ -157,10 +152,10 @@ class ChatTestCase(GraphQLTestCase):
     def test_create_chat_message_invalid_chat(self):
         response = self.query(
             self.create_chat_message_mutation,
-            variables={'chatId': self.chat1.id, 'senderId': self.user1.id, 'receiverId': self.user3.id, 'content': 'Hello'}
+            variables={'chatId': self.chat1.id, 'senderId': self.user3.id, 'content': 'Hello'}
         )
         content = response.json()
         self.assertIn("errors", content)
-        self.assertEqual(content['errors'][0]['message'], "['A user is not a member of this chat']")
+        self.assertEqual(content['errors'][0]['message'], 'A user is not a member of this chat')
 
         

@@ -58,18 +58,19 @@ class CreateChatMessage(graphene.Mutation):
     class Arguments:
         chat_id = graphene.Int()
         sender_id = graphene.Int()
-        receiver_id = graphene.Int()
         content = graphene.String()
         
     chat_message = graphene.Field(ChatMessageType)
     
-    def mutate(self, info, chat_id, sender_id, content, receiver_id):
+    def mutate(self, info, chat_id, sender_id, content):
         chat = get_object_or_404(Chat, pk=chat_id)
-        validate_chat_message(chat, sender_id, receiver_id)
-        message = create_message(sender_id, receiver_id, content)
+        validate_chat_message(chat, sender_id)
+        message = create_message(sender_id, content)
         chat_message = ChatMessage.objects.create(chat=chat, message=message)
         chat_message.save()
-        receiver = get_object_or_404(CustomUser, pk=receiver_id)
+        chat.last_message = chat_message
+        chat.save()
+        receiver = chat.user1 if chat.user1_id != sender_id else chat.user2
         notification = Notification.objects.create(receiver=receiver, message=message)
         notification.save()
         return CreateChatMessage(chat_message=chat_message)
@@ -102,7 +103,7 @@ class CreateGroupMessage(graphene.Mutation):
         user_group = get_object_or_404(UserGroup, pk=user_group_id)
         content = bleach.clean(content)
         validate_message_content(content)
-        message = create_message(sender_id, None, content)
+        message = create_message(sender_id, content)
         group_message = GroupMessage.objects.create(user_group=user_group, message=message)
         group_message.save()
         # Update last message of the group
