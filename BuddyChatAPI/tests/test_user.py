@@ -81,7 +81,8 @@ class UserTestCase(GraphQLTestCase):
         self.assertIn("errors", content)
         self.assertEqual(content['errors'][0]['message'], "['Phone number must be 13 characters long']")
         
-    def test_create_user_invalid_password_letters_only(self):
+    def test_create_user_invalid_password(self):
+        # check for digits in password
         response = self.query(
             query=self.create_user_mutation, 
             variables={'username': 'test2', 'email': 'a@g.com', 'password': 'aaaaaaaa', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
@@ -91,7 +92,7 @@ class UserTestCase(GraphQLTestCase):
         self.assertIn("errors", content)
         self.assertEqual(content['errors'][0]['message'], "['Password must contain at least one digit']")
         
-    def test_create_user_invalid_password_numbers_only(self):
+        # check for letters in password
         response = self.query(
             query=self.create_user_mutation, 
             variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
@@ -101,7 +102,7 @@ class UserTestCase(GraphQLTestCase):
         self.assertIn("errors", content)
         self.assertEqual(content['errors'][0]['message'], "['Password must contain at least one letter']")
         
-    def test_create_user_invalid_password_no_uppercase(self):
+        # check for uppercase in password
         response = self.query(
             query=self.create_user_mutation, 
             variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
@@ -111,7 +112,7 @@ class UserTestCase(GraphQLTestCase):
         self.assertIn("errors", content)
         self.assertEqual(content['errors'][0]['message'], "['Password must contain at least one uppercase letter']")
         
-    def test_create_user_invalid_password_no_lowercase(self):
+        # check for lowercase in password
         response = self.query(
             query=self.create_user_mutation, 
             variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789TEST', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
