@@ -8,12 +8,12 @@ django = "*"
 graphene-django = "*"
 channels = "*"
 channels-redis = "*"
-graphql-ws = "*"
-graphql-core = "*"
 pillow = "*"
 mysqlclient = "*"
 django-filter = "*"
 bleach = "*"
+django-graphql-jwt = "*"
+django-allauth = "*"
 
 [dev-packages]
 
