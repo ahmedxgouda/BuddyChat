@@ -69,6 +69,8 @@ def validate_group_title(title):
 def validate_admin_assignment(user_group, member, user_adding):
     if not user_group.members.filter(pk=user_adding.pk, is_admin=True).exists():
         raise PermissionDenied('Only group admins can assign admin roles')
+    if not user_group.members.filter(pk=user_adding.pk).exists():
+        raise ValidationError('User is not a member of this group')
     if user_group.members.filter(pk=member.pk, is_admin=True).exists():
         raise ValidationError('User is already an admin')
     return True

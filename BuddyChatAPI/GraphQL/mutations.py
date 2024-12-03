@@ -4,6 +4,9 @@ from ..models import *
 from .types import *
 from .validators import *
 import bleach
+from graphql_jwt.decorators import login_required
+from graphql_jwt import Verify, Refresh, ObtainJSONWebToken
+from allauth.account.models import EmailAddress
 
 def create_message(sender_id, content):
     sender = get_object_or_404(CustomUser, pk=sender_id)
@@ -22,6 +25,21 @@ def create_group_member(user_group_id, member_id, is_admin=False):
     user_group.members_count += 1
     user_group.save()
     return group_member
+
+
+class ObtainJSONWebTokenCustom(ObtainJSONWebToken):
+    @classmethod
+    def resolve(cls, root, info, **kwargs):
+        response = super().resolve(root, info, **kwargs)
+        user = info.context.user
+        if user.is_authenticated:
+            response.token_payload['is_verified'] = EmailAddress.objects.filter(user=user, verified=True).exists()
+        return response
+    
+class AuthMutation(graphene.ObjectType):
+    token_auth = ObtainJSONWebTokenCustom.Field()
+    verify_token = Verify.Field()
+    refresh_token = Refresh.Field()
     
 class CreateUser(graphene.Mutation):
     class Arguments:
@@ -46,6 +64,7 @@ class CreateChat(graphene.Mutation):
         
     chat = graphene.Field(ChatType)
     
+    @login_required
     def mutate(self, info, user1_id, user2_id):
         user1 = get_object_or_404(CustomUser, pk=user1_id)
         user2 = get_object_or_404(CustomUser, pk=user2_id)
@@ -62,6 +81,7 @@ class CreateChatMessage(graphene.Mutation):
         
     chat_message = graphene.Field(ChatMessageType)
     
+    @login_required
     def mutate(self, info, chat_id, sender_id, content):
         chat = get_object_or_404(Chat, pk=chat_id)
         validate_chat_message(chat, sender_id)
@@ -82,6 +102,7 @@ class CreateGroup(graphene.Mutation):
         
     user_group = graphene.Field(UserGroupType)
     
+    @login_required
     def mutate(self, info, title, created_by_id):
         created_by = get_object_or_404(CustomUser, pk=created_by_id)
         validate_group_title(title)
@@ -99,6 +120,7 @@ class CreateGroupMessage(graphene.Mutation):
         
     group_message = graphene.Field(GroupMessageType)
     
+    @login_required
     def mutate(self, info, user_group_id, sender_id, content):
         user_group = get_object_or_404(UserGroup, pk=user_group_id)
         content = bleach.clean(content)
@@ -123,6 +145,7 @@ class CreateGroupMember(graphene.Mutation):
         
     group_member = graphene.Field(GroupMemberType)
     
+    @login_required
     def mutate(self, info, user_group_id, member_id):
         group_member = create_group_member(user_group_id, member_id)
         return CreateGroupMember(group_member=group_member)
@@ -134,6 +157,7 @@ class AssignAdmin(graphene.Mutation):
         
     group_member = graphene.Field(GroupMemberType)
     
+    @login_required
     def mutate(self, info, user_group_id, member_id):
         group_member = get_object_or_404(GroupMember, user_group_id=user_group_id, member_id=member_id)
         validate_admin_assignment(group_member, user_group_id, info.context.user)
@@ -147,6 +171,7 @@ class SetNotificationAsRead(graphene.Mutation):
         
     notification = graphene.Field(NotificationType)
     
+    @login_required
     def mutate(self, info, notification_id):
         notification = get_object_or_404(Notification, pk=notification_id)
         notification.is_read = True

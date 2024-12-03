@@ -18,22 +18,32 @@ class Query(graphene.ObjectType):
     def resolve_users(self, info, **kwargs):
         return get_users()
     
+    @login_required
     def resolve_chats(self, info, **kwargs):
-        return get_chats()
+        return get_chats().filter(user1=info.context.user) | get_chats().filter(user2=info.context.user)
     
+    @login_required
     def resolve_user_groups(self, info, **kwargs):
-        return get_user_groups()
+        return get_user_groups().filter(members=info.context.user)
     
+    @login_required
     def resolve_chat(self, info, id):
-        return get_chat(id)
+        chat = get_chat(id)
+        if chat.user1 == info.context.user or chat.user2 == info.context.user:
+            return chat
+        raise PermissionDenied("You are not allowed to view this chat")
     
+    @login_required
     def resolve_user_group(self, info, id):
-        return get_user_group(id)
+        user_group = get_user_group(id)
+        if info.context.user in user_group.members.all():
+            return user_group
+        raise PermissionDenied("You are not allowed to view this group")
     
     def resolve_user(self, info, id):
         return get_user(id)
     
-class Mutation(graphene.ObjectType):
+class Mutation(AuthMutation, graphene.ObjectType):
     create_user = CreateUser.Field()
     create_chat = CreateChat.Field()
     create_chat_message = CreateChatMessage.Field()
