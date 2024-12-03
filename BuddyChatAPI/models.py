@@ -15,7 +15,6 @@ class CustomUser(AbstractUser):
     
 class Message(models.Model):
     sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name='received_messages')
     content = models.TextField()
     date = models.DateTimeField(auto_now_add=True, db_index=True)
     read_at = models.DateTimeField(null=True, db_index=True)
@@ -36,8 +35,6 @@ class Chat(models.Model):
         unique_together = ('user1', 'user2')
         ordering = ('-last_message__message__date',)
     
-    class Meta:
-        ordering = ('-last_message__message__date',)
 
 class ChatMessage(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='chat_messages')

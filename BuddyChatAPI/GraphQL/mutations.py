@@ -5,12 +5,11 @@ from .types import *
 from .validators import *
 import bleach
 
-def create_message(sender_id, receiver_id, content):
+def create_message(sender_id, content):
     sender = get_object_or_404(CustomUser, pk=sender_id)
-    receiver = get_object_or_404(CustomUser, pk=receiver_id) if receiver_id else None
     content = bleach.clean(content)
     validate_message_content(content)
-    message = Message.objects.create(sender=sender, receiver=receiver, content=content)
+    message = Message.objects.create(sender=sender, content=content)
     message.save()
     return message
 
