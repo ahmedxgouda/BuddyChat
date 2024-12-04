@@ -37,7 +37,8 @@ class CreateGroupMessage(graphene.Mutation):
         user_group = get_object_or_404(UserGroup, pk=user_group_id)
         sender_id = info.context.user.id
         # check if the sender is a member of the group
-        validate_group_message_sender(user_group, sender_id)
+        group_member = user_group.members.filter(member_id=sender_id)
+        validate_group_message_sender(group_member)
         content = bleach.clean(content)
         validate_message_content(content)
         message = create_message(sender_id, content)

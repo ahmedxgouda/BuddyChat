@@ -56,8 +56,8 @@ def validate_group_member(user_group, member):
         raise ValidationError('User is already a member of this group')
     return True
 
-def validate_group_message_sender(user_group, sender_id):
-    if not user_group.members.filter(pk=sender_id).exists():
+def validate_group_message_sender(group_member):
+    if not group_member.exists():
         raise ValidationError('User is not a member of this group')
     return True
 
