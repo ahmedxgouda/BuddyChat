@@ -9,6 +9,19 @@ class UserTestCase(GraphQLTestCase):
         self.user2 = CustomUser.objects.create_user(username='test1', first_name='test1', last_name='test1', password="113456789Test", email="test1@buddy-chat.com", phone="+201234567891")
         self.user1.save()
         self.user2.save()
+        # Get token for updating and deleting
+        query = '''
+            mutation TokenAuth($username: String!, $password: String!) {
+                
+                tokenAuth(username: $username, password: $password) {
+                    token
+                }
+            }
+            '''
+        response_token = self.query(query=query, variables={'username': 'test', 'password': '123456789Test'})
+        self.user1_token = response_token.json()['data']['tokenAuth']['token']
+        response_token = self.query(query=query, variables={'username': 'test1', 'password': '113456789Test'})
+        self.user2_token = response_token.json()['data']['tokenAuth']['token']
         # Repeated mutation for testing
         self.create_user_mutation = '''
             mutation CreateUser($username: String!, $email: String!, $password: String!, $phone: String!, $firstName: String!, $lastName: String!) {
@@ -159,3 +172,79 @@ class UserTestCase(GraphQLTestCase):
         self.assertEqual(content['data']['createUser']['user']['firstName'], 'test2')
         self.assertEqual(content['data']['createUser']['user']['lastName'], 'test2')
         
+    def test_update_user(self):
+        query = '''
+            mutation UpdateUser($firstName: String, $lastName: String, $profilePicture: String, $bio: String) {
+                updateUser(firstName: $firstName, lastName: $lastName, profilePicture: $profilePicture, bio: $bio) {
+                    user {
+                        id
+                        firstName
+                        lastName
+                        profilePic
+                        bio
+                    }
+                }
+            }
+        '''
+        response = self.query(
+            query=query, 
+            variables={'firstName': 'test3', 'lastName': 'test3', 'profilePicture': 'test3.jpg', 'bio': 'test3'},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['updateUser']['user']['firstName'], 'test3')
+        self.assertEqual(content['data']['updateUser']['user']['lastName'], 'test3')
+        self.assertEqual(content['data']['updateUser']['user']['profilePic'], 'test3.jpg')
+        self.assertEqual(content['data']['updateUser']['user']['bio'], 'test3')
+        
+    def test_change_password(self):
+        query = '''
+            mutation ChangePassword($oldPassword: String!, $newPassword: String!) {
+                changePassword(oldPassword: $oldPassword, newPassword: $newPassword) {
+                    user {
+                        id
+                    }
+                }
+            }
+        '''
+        response = self.query(
+            query=query, 
+            variables={'oldPassword': '123456789Test', 'newPassword': '123456789Test1'},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['changePassword']['user']['id'], str(self.user1.id))
+        
+    def test_delete_user(self):
+        query = '''
+            mutation DeleteUser($password: String!) {
+                deleteUser(password: $password) {
+                    userId
+                }
+            }
+        '''
+        # Test invalid password
+        response = self.query(
+            query=query,
+            variables={'password': '123456789Test'},
+            headers={'Authorization': f'JWT {self.user2_token}'}
+        )
+        content = response.json()
+        self.assertIn("errors", content)
+        self.assertEqual(content['errors'][0]['message'], 'Please, enter valid credentials')
+        
+        user_id = self.user2.id
+        # Test valid password
+        response = self.query(
+            query=query,
+            variables={'password': '113456789Test'},
+            headers={'Authorization': f'JWT {self.user2_token}'}
+        )
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['deleteUser']['userId'], user_id)
+        self.assertEqual(CustomUser.objects.filter(id=user_id).count(), 0)
