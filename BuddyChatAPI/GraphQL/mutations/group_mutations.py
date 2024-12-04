@@ -22,7 +22,7 @@ class CreateGroup(graphene.Mutation):
         user_group = UserGroup.objects.create(title=title, created_by=created_by)
         user_group.save()
         user_group.members_count = 1
-        create_group_member(user_group.id, created_by_id, is_admin=True)
+        create_group_member(user_group, created_by_id, is_admin=True)
         return CreateGroup(user_group=user_group)
     
 class CreateGroupMessage(graphene.Mutation):
@@ -62,8 +62,10 @@ class CreateGroupMember(graphene.Mutation):
     
     @login_required
     def mutate(self, info, user_group_id, member_id):
-        validate_admin(user_group_id, member_id, info.context.user)
-        group_member = create_group_member(user_group_id, member_id)
+        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+        admin_member = user_group.members.get(member=info.context.user)
+        validate_admin(user_group, member_id, admin_member)
+        group_member = create_group_member(user_group, member_id)
         return CreateGroupMember(group_member=group_member)
 
 class AssignAdmin(graphene.Mutation):

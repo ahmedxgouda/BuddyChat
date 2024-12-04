@@ -247,8 +247,7 @@ class GroupTestCase(GraphQLTestCase):
             variables={'userGroupId': self.group.id, 'memberId': self.user4.id},
             headers={'Authorization': f'JWT {self.admin_token}'}
         )
-        print("User id: ", self.user4.id)
-        print(self.group.id)
+
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createGroupMember']['groupMember']['member']['id'], str(self.user4.id))
