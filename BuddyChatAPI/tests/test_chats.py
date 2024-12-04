@@ -17,12 +17,12 @@ class ChatTestCase(GraphQLTestCase):
         self.chat1.save()
         self.chat2 = Chat.objects.create(user1=self.user1, user2=self.user3)
         self.chat2.save()
-        self.chat3 = Chat.objects.create(user1=self.user1, user2=self.user4)
+        self.chat3 = Chat.objects.create(user1=self.user2, user2=self.user4)
         self.chat3.save()
         # Create messages and chat messages
         self.message1 = Message.objects.create(sender=self.user1, content='Hello')
         self.message2 = Message.objects.create(sender=self.user1, content='Hello')
-        self.message3 = Message.objects.create(sender=self.user1, content='Hello')
+        self.message3 = Message.objects.create(sender=self.user2, content='Hello')
         self.message1.save()
         self.message2.save()
         self.message3.save()
@@ -33,6 +33,18 @@ class ChatTestCase(GraphQLTestCase):
         self.chat_message3 = ChatMessage.objects.create(chat=self.chat3, message=self.message3)
         self.chat_message3.save()
         
+        # Token for authentication
+        tokenResponse = self.query(
+            '''
+            mutation TokenAuth($username: String!, $password: String!) {
+                tokenAuth(username: $username, password: $password) {
+                    token
+                }  
+            }              
+            '''
+            , variables={'username': 'test', 'password': '123456789Test'}
+        )
+        self.token = tokenResponse.json()['data']['tokenAuth']['token']
         # Repeated mutation for testing
         self.create_chat_mutation = '''
             mutation CreateChat($user1Id: Int!, $user2Id: Int!) {
@@ -52,8 +64,8 @@ class ChatTestCase(GraphQLTestCase):
             }
         '''
         self.create_chat_message_mutation = '''
-            mutation CreateChatMessage($chatId: Int!, $senderId: Int!, $content: String!) {
-                createChatMessage(chatId: $chatId, senderId: $senderId, content: $content) {
+            mutation CreateChatMessage($chatId: Int!, $content: String!) {
+                createChatMessage(chatId: $chatId, content: $content) {
                     chatMessage {
                         id
                         chat {
@@ -93,11 +105,12 @@ class ChatTestCase(GraphQLTestCase):
                     }
                 }
             }
-            '''
+            ''',
+            headers={'Authorization': f'JWT {self.token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(len(content['data']['chats']['edges']), 3)
+        self.assertEqual(len(content['data']['chats']['edges']), 2)
         self.assertEqual(content['data']['chats']['edges'][0]['node']['user1']['username'], 'test')
         
     def test_query_chat(self):
@@ -118,6 +131,7 @@ class ChatTestCase(GraphQLTestCase):
             }
             ''',
             variables={'id': self.chat1.id},
+            headers={'Authorization': f'JWT {self.token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
@@ -126,7 +140,8 @@ class ChatTestCase(GraphQLTestCase):
     def test_create_chat(self):
         response = self.query(
             self.create_chat_mutation,
-            variables={'user1Id': self.user1.id, 'user2Id': self.user1.id}
+            variables={'user1Id': self.user1.id, 'user2Id': self.user1.id},
+            headers={'Authorization': f'JWT {self.token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
@@ -136,7 +151,8 @@ class ChatTestCase(GraphQLTestCase):
     def test_create_chat_message(self):
         response = self.query(
             self.create_chat_message_mutation,
-            variables={'chatId': self.chat1.id, 'senderId': self.user1.id, 'content': 'Hello'}
+            variables={'chatId': self.chat1.id, 'content': 'Hello'},
+            headers={'Authorization': f'JWT {self.token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
@@ -152,7 +168,8 @@ class ChatTestCase(GraphQLTestCase):
     def test_create_chat_message_invalid_chat(self):
         response = self.query(
             self.create_chat_message_mutation,
-            variables={'chatId': self.chat1.id, 'senderId': self.user3.id, 'content': 'Hello'}
+            variables={'chatId': self.chat3.id, 'content': 'Hello'},
+            headers={'Authorization': f'JWT {self.token}'}
         )
         content = response.json()
         self.assertIn("errors", content)

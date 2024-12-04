@@ -46,10 +46,45 @@ class GroupTestCase(GraphQLTestCase):
         self.group_message3.save()
         self.group_message4.save()
         
+        # Token for authentication
+        token_query = '''
+            mutation TokenAuth($username: String!, $password: String!) {
+                tokenAuth(username: $username, password: $password) {
+                    token
+                }
+            }
+            '''
+        
+        admin_token_response = self.query(
+            query=token_query,
+            variables={'username': self.admin_user.username, 'password': '123456789Test'}
+        )
+        user1_token_response = self.query(
+            query=token_query,
+            variables={'username': self.user1.username, 'password': '113456789Test'}
+        )
+        user2_token_response = self.query(
+            query=token_query,
+            variables={'username': self.user2.username, 'password': '113456789Test'}
+        )
+        user3_token_response = self.query(
+            query=token_query,
+            variables={'username': self.user3.username, 'password': '113456789Test'}
+        )
+        user4_token_response = self.query(
+            query=token_query,
+            variables={'username': self.user4.username, 'password': '113456789Test'}
+        )
+        self.admin_token = admin_token_response.json()['data']['tokenAuth']['token']
+        self.user1_token = user1_token_response.json()['data']['tokenAuth']['token']
+        self.user2_token = user2_token_response.json()['data']['tokenAuth']['token']
+        self.user3_token = user3_token_response.json()['data']['tokenAuth']['token']
+        self.user4_token = user4_token_response.json()['data']['tokenAuth']['token']
+
         # Repeated mutation for testing
         self.create_group_mutation = '''
-            mutation CreateGroup($title: String!, $createdById: Int!) {
-                createGroup(title: $title, createdById: $createdById) {
+            mutation CreateGroup($title: String!) {
+                createGroup(title: $title) {
                     userGroup {
                         id
                         title
@@ -64,8 +99,8 @@ class GroupTestCase(GraphQLTestCase):
             }
         '''
         self.create_group_message_mutation = '''
-            mutation CreateGroupMessage($userGroupId: Int!, $senderId: Int!, $content: String!) {
-                createGroupMessage(userGroupId: $userGroupId, senderId: $senderId, content: $content) {
+            mutation CreateGroupMessage($userGroupId: Int!, $content: String!) {
+                createGroupMessage(userGroupId: $userGroupId, content: $content) {
                     groupMessage {
                         id
                         userGroup {
@@ -76,6 +111,20 @@ class GroupTestCase(GraphQLTestCase):
                             sender {
                                 id
                             }
+                        }
+                    }
+                }
+            }
+        '''
+        
+        self.notifications_query = '''
+            query User($id: Int!) {
+                user(id: $id) {
+                    notifications {
+                        id
+                        message {
+                            id
+                            content
                         }
                     }
                 }
@@ -101,7 +150,8 @@ class GroupTestCase(GraphQLTestCase):
                     }
                 }
             }
-            '''
+            ''',
+            headers={'Authorization': f'JWT {self.admin_token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
@@ -123,46 +173,59 @@ class GroupTestCase(GraphQLTestCase):
                 }
             }
         '''
-        response = self.query(query=query, variables={'id': self.group.id})
+        response = self.query(query=query, variables={'id': self.group.id}, headers={'Authorization': f'JWT {self.user1_token}'})
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['userGroup']['title'], 'test')
         
     def test_create_group(self):
-        response = self.query(query=self.create_group_mutation, variables={'title': 'test2', 'createdById': self.user1.id})
+        response = self.query(
+            query=self.create_group_mutation,
+            variables={'title': 'test2'},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+        
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createGroup']['userGroup']['title'], 'test2')
         
     def test_create_group_message(self):
-        response = self.query(query=self.create_group_message_mutation, variables={'userGroupId': self.group.id, 'senderId': self.user1.id, 'content': 'Hello from user1'})
+        response = self.query(
+            query=self.create_group_message_mutation,
+            variables={'userGroupId': self.group.id, 'content': 'Hello from user1'},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createGroupMessage']['groupMessage']['message']['sender']['id'], str(self.user1.id))
+        
         # Check if the notification was created
-        notificationsResponse = self.query(
-            '''
-            query {
-                users {
-                    edges {
-                        node {
-                            notifications {
-                                id
-                                message {
-                                    id
-                                    content
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            '''
+        user2NotificationResponse = self.query(
+            query=self.notifications_query,
+            variables={'id': self.user2.id},
+            headers={'Authorization': f'JWT {self.user2_token}'}
         )
-        notificationsContent = notificationsResponse.json()
-        self.assertResponseNoErrors(notificationsResponse)
-        allNotifications = [notification for user in notificationsContent['data']['users']['edges'] for notification in user['node']['notifications']]
-        self.assertEqual(len(allNotifications), 3)
+        user3NotificationResponse = self.query(
+            query=self.notifications_query,
+            variables={'id': self.user3.id},
+            headers={'Authorization': f'JWT {self.user3_token}'}
+        )
+        user4NotificationResponse = self.query(
+            query=self.notifications_query,
+            variables={'id': self.user4.id},
+            headers={'Authorization': f'JWT {self.user4_token}'}
+        )
+        self.assertResponseNoErrors(user2NotificationResponse)
+        self.assertResponseNoErrors(user3NotificationResponse)
+        self.assertResponseNoErrors(user4NotificationResponse)
+        user2NotificationsContent = user2NotificationResponse.json()
+        user3NotificationsContent = user3NotificationResponse.json()
+        user4NotificationsContent = user4NotificationResponse.json()
+        self.assertEqual(len(user2NotificationsContent['data']['user']['notifications']), 1)
+        self.assertEqual(len(user3NotificationsContent['data']['user']['notifications']), 1)
+        # User4 is not a member of the group
+        self.assertEqual(len(user4NotificationsContent['data']['user']['notifications']), 0)
         
     def test_create_group_member(self):
         response = self.query(
@@ -181,7 +244,8 @@ class GroupTestCase(GraphQLTestCase):
                 }
             }
             ''',
-            variables={'userGroupId': self.group.id, 'memberId': self.user4.id}
+            variables={'userGroupId': self.group.id, 'memberId': self.user4.id},
+            headers={'Authorization': f'JWT {self.admin_token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)

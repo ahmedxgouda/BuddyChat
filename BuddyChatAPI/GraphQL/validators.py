@@ -54,6 +54,11 @@ def validate_group_member(user_group, member):
         raise ValidationError('User is already a member of this group')
     return True
 
+def validate_group_message_sender(user_group, sender_id):
+    if not user_group.members.filter(pk=sender_id).exists():
+        raise ValidationError('User is not a member of this group')
+    return True
+
 def validate_chat_message(chat: Chat, sender_id):
     # Case 1: A user is trying to send a message to themselves
     # Case 2: A user is trying to send a message to a user who is not a member of the chat
@@ -66,12 +71,10 @@ def validate_group_title(title):
         raise ValidationError('Group title must be at least 2 characters long')
     return True
 
-def validate_admin_assignment(user_group, member, user_adding):
-    if not user_group.members.filter(pk=user_adding.pk, is_admin=True).exists():
-        raise PermissionDenied('Only group admins can assign admin roles')
-    if not user_group.members.filter(pk=user_adding.pk).exists():
+def validate_admin(user_group, member, group_admin):
+    if not user_group.members.filter(pk=group_admin.pk, is_admin=True).exists():
+        raise PermissionDenied('Only group admins can do this operation')
+    if not user_group.members.filter(pk=group_admin.pk).exists():
         raise ValidationError('User is not a member of this group')
-    if user_group.members.filter(pk=member.pk, is_admin=True).exists():
-        raise ValidationError('User is already an admin')
     return True
     

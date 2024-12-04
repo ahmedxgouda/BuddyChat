@@ -161,3 +161,8 @@ GRAPHQL_JWT = {
     'JWT_EXPIRATION_DELTA': timedelta(minutes=5),
     'JWT_REFRESH_EXPIRATION_DELTA': timedelta(days=14),
 }
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+ACCOUNT_EMAIL_VERIFICATION = 'optional' # temporary for development
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'

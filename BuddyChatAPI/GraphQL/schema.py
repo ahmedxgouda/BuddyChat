@@ -24,7 +24,8 @@ class Query(graphene.ObjectType):
     
     @login_required
     def resolve_user_groups(self, info, **kwargs):
-        return get_user_groups().filter(members=info.context.user)
+        group_member = GroupMember.objects.filter(member=info.context.user)
+        return get_user_groups().filter(pk__in=group_member.values_list('user_group', flat=True))
     
     @login_required
     def resolve_chat(self, info, id):
@@ -36,7 +37,10 @@ class Query(graphene.ObjectType):
     @login_required
     def resolve_user_group(self, info, id):
         user_group = get_user_group(id)
-        if info.context.user in user_group.members.all():
+        group_members = GroupMember.objects.filter(user_group=user_group)
+        users = group_members.values_list('member', flat=True)
+        usernames = CustomUser.objects.filter(pk__in=users).values_list('username', flat=True)
+        if info.context.user.username in usernames:
             return user_group
         raise PermissionDenied("You are not allowed to view this group")
     
