@@ -16,8 +16,6 @@ class UserTestCase(GraphQLTestCase):
                     user {
                         id
                         username
-                        email
-                        phone
                         firstName
                         lastName
                     }
@@ -34,8 +32,6 @@ class UserTestCase(GraphQLTestCase):
                         node {
                             id
                             username
-                            email
-                            phone
                             firstName
                             lastName
                         }
@@ -55,8 +51,6 @@ class UserTestCase(GraphQLTestCase):
                 user(id: $id) {
                     id
                     username
-                    email
-                    phone
                     firstName
                     lastName
                 }
@@ -162,8 +156,6 @@ class UserTestCase(GraphQLTestCase):
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createUser']['user']['username'], 'test2')
-        self.assertEqual(content['data']['createUser']['user']['email'], 'a@f.com')
-        self.assertEqual(content['data']['createUser']['user']['phone'], '+201234567897')
         self.assertEqual(content['data']['createUser']['user']['firstName'], 'test2')
         self.assertEqual(content['data']['createUser']['user']['lastName'], 'test2')
         
