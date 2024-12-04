@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 mysql_credintials.py
 media
+.vscode

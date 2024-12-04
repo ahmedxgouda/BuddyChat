@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError, PermissionDenied
 from ..models import CustomUser, Chat
 from django.core.validators import validate_email
+from django.shortcuts import get_object_or_404
+from ..models import UserGroup
 
 def validate_password(password):
     if len(password) < 8:
@@ -71,7 +73,8 @@ def validate_group_title(title):
         raise ValidationError('Group title must be at least 2 characters long')
     return True
 
-def validate_admin(user_group, member, group_admin):
+def validate_admin(user_group_id, member, group_admin):
+    user_group = get_object_or_404(UserGroup, pk=user_group_id)
     if not user_group.members.filter(pk=group_admin.pk, is_admin=True).exists():
         raise PermissionDenied('Only group admins can do this operation')
     if not user_group.members.filter(pk=group_admin.pk).exists():
