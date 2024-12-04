@@ -4,11 +4,11 @@ from ..models import UserGroup, CustomUser, GroupMember, GroupMessage, Message
 class GroupTestCase(GraphQLTestCase):
     def setUp(self):
         # Prepare the users
-        self.admin_user = CustomUser.objects.create_user(username='testGroup', first_name='test', last_name='test', password="123456789Test", email="a@g.com", phone="+201234567890")
-        self.user1 = CustomUser.objects.create_user(username='testGroup1', first_name='test1', last_name='test1', password="113456789Test", email="b@g.com", phone="+201234567891")
-        self.user2 = CustomUser.objects.create_user(username='testGroup2', first_name='test2', last_name='test2', password="113456789Test", email="f@g.com", phone="+201234567892")
-        self.user3 = CustomUser.objects.create_user(username='testGroup3', first_name='test3', last_name='test3', password="113456789Test", email="f@g.com", phone="+201234567893")
-        self.user4 = CustomUser.objects.create_user(username='testGroup4', first_name='test4', last_name='test4', password="113456789Test", email="c@g.com", phone="+201234567894")
+        self.admin_user = CustomUser.objects.create_user(username='testGroup', first_name='test', last_name='test', password="123456789Test", email="testGroup@gg.com", phone="+201234587890")
+        self.user1 = CustomUser.objects.create_user(username='testGroup1', first_name='test1', last_name='test1', password="113456789Test", email="testGroup1@gg.com", phone="+201234867891")
+        self.user2 = CustomUser.objects.create_user(username='testGroup2', first_name='test2', last_name='test2', password="113456789Test", email="testGroup2@gg.com", phone="+201234567882")
+        self.user3 = CustomUser.objects.create_user(username='testGroup3', first_name='test3', last_name='test3', password="113456789Test", email="testGroup3@gg.com", phone="+201534567893")
+        self.user4 = CustomUser.objects.create_user(username='testGroup4', first_name='test4', last_name='test4', password="113456789Test", email="testGroup4@gg.com", phone="+201034567894")
         self.admin_user.save()
         self.user1.save()
         self.user2.save()
@@ -247,6 +247,8 @@ class GroupTestCase(GraphQLTestCase):
             variables={'userGroupId': self.group.id, 'memberId': self.user4.id},
             headers={'Authorization': f'JWT {self.admin_token}'}
         )
+        print("User id: ", self.user4.id)
+        print(self.group.id)
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createGroupMember']['groupMember']['member']['id'], str(self.user4.id))

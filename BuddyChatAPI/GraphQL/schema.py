@@ -4,6 +4,13 @@ from .connections import CustomUserConnection, ChatConnection, UserGroupConnecti
 from .types import CustomUserType, ChatType, UserGroupType, NotificationType
 from .mutations import *
 from .resolvers import get_chat, get_user_group, get_user, get_users, get_chats, get_user_groups
+from .mutations.notification_mutations import SetNotificationAsRead
+from .mutations.auth_mutations import AuthMutation
+from .mutations.group_mutations import GroupMutations
+from .mutations.chat_mutations import ChatMutations
+from graphql_jwt.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from ..models import CustomUser, GroupMember
     
 class Query(graphene.ObjectType):
     users = graphene.relay.ConnectionField(CustomUserConnection)
@@ -47,14 +54,7 @@ class Query(graphene.ObjectType):
     def resolve_user(self, info, id):
         return get_user(id)
     
-class Mutation(AuthMutation, graphene.ObjectType):
-    create_user = CreateUser.Field()
-    create_chat = CreateChat.Field()
-    create_chat_message = CreateChatMessage.Field()
-    create_group = CreateGroup.Field()
-    create_group_message = CreateGroupMessage.Field()
-    create_group_member = CreateGroupMember.Field()
-    assign_admin = AssignAdmin.Field()
+class Mutation(AuthMutation, GroupMutations, ChatMutations, graphene.ObjectType):
     set_notification_read = SetNotificationAsRead.Field()
     
 schema = graphene.Schema(query=Query, mutation=Mutation)
