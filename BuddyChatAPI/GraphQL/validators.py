@@ -73,7 +73,7 @@ def validate_group_title(title):
         raise ValidationError('Group title must be at least 2 characters long')
     return True
 
-def validate_admin(user_group, member, group_admin):
+def validate_admin(user_group, group_admin):
     if not user_group.members.filter(pk=group_admin.pk).exists():
         raise ValidationError('User is not a member of this group')
     if not group_admin.is_admin:

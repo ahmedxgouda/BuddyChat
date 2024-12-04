@@ -65,7 +65,7 @@ class CreateGroupMember(graphene.Mutation):
     def mutate(self, info, user_group_id, member_id):
         user_group = get_object_or_404(UserGroup, pk=user_group_id)
         admin_member = user_group.members.get(member=info.context.user)
-        validate_admin(user_group, member_id, admin_member)
+        validate_admin(user_group, admin_member)
         group_member = create_group_member(user_group, member_id)
         return CreateGroupMember(group_member=group_member)
 
@@ -79,7 +79,9 @@ class AssignAdmin(graphene.Mutation):
     @login_required
     def mutate(self, info, user_group_id, member_id):
         group_member = get_object_or_404(GroupMember, user_group_id=user_group_id, member_id=member_id)
-        validate_admin(group_member, user_group_id, info.context.user)
+        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+        admin_member = user_group.members.get(member=info.context.user)
+        validate_admin(user_group, admin_member)
         group_member.is_admin = True
         group_member.save()
         return AssignAdmin(group_member=group_member)

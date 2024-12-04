@@ -251,3 +251,29 @@ class GroupTestCase(GraphQLTestCase):
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createGroupMember']['groupMember']['member']['id'], str(self.user4.id))
+        
+    def test_assign_admin(self):
+        response = self.query(
+            '''
+            mutation AssignAdmin($userGroupId: Int!, $memberId: Int!) {
+                assignAdmin(userGroupId: $userGroupId, memberId: $memberId) {
+                    groupMember {
+                        id
+                        userGroup {
+                            id
+                        }
+                        member {
+                            id
+                        }
+                        isAdmin
+                    }
+                }
+            }
+            ''',
+            variables={'userGroupId': self.group.id, 'memberId': self.user1.id},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['assignAdmin']['groupMember']['isAdmin'], True)
