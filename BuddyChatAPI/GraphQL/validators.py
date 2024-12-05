@@ -32,17 +32,22 @@ def validate_user_data(username, email, password, phone, first_name, last_name):
     
     if len(username) < 4:
         raise ValidationError('Username must be at least 4 characters long')
-    if len(phone) != 13:
-        raise ValidationError('Phone number must be 13 characters long')
-    if not phone.startswith('+'):
-        raise ValidationError('Phone number must start with "+"')
-    if not phone[1:].isdigit():
-        raise ValidationError('Phone number must contain only digits')
+    if len(phone) < 8 or len(phone) > 15:
+        raise ValidationError('Phone number must be between 8 and 15 characters long')
     if len(first_name) < 2:
         raise ValidationError('First name must be at least 2 characters long')
     if len(last_name) < 2:
         raise ValidationError('Last name must be at least 2 characters long')
     validate_password(password)
+    return True
+
+def validate_phone_number(phone, country_code=None):
+    if len(phone) < 8 or len(phone) > 15:
+        raise ValidationError('Phone number must be between 8 and 15 characters long')
+    if not phone.isdigit():
+        raise ValidationError('Phone number must contain only digits')
+    if country_code and not country_code.isdigit():
+        raise ValidationError('Country code must contain only digits')
     return True
 
 def validate_message_content(content):

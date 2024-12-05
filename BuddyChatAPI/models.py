@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 # Create your models here.
 
 class CustomUser(AbstractUser):
-    phone = models.CharField(max_length=15) # deprecated
+    phone = models.CharField(max_length=15, null=True) # deprecated
     bio = models.TextField(max_length=500, blank=True, default='')
     profile_pic = models.ImageField(upload_to='profile_pics/', default='profile_pics/default.svg')
     updated_at = models.DateTimeField(auto_now=True)
@@ -16,6 +16,9 @@ class PhoneNumber(models.Model):
     number = models.CharField(max_length=15)
     country_code = models.CharField(max_length=5)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='phone_numbers')
+
+    class Meta:
+        unique_together = ('number', 'country_code')
 
 
 class Message(models.Model):

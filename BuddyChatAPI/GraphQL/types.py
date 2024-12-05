@@ -10,7 +10,7 @@ class CustomUserType(DjangoObjectType):
         
     notifications = graphene.List('BuddyChatAPI.GraphQL.types.NotificationType')
     email = graphene.String()
-    phone = graphene.String()
+    phone_numbers = graphene.List('BuddyChatAPI.GraphQL.types.PhoneNumberType')
     
     @login_required
     def resolve_notifications(self, info):
@@ -25,12 +25,20 @@ class CustomUserType(DjangoObjectType):
         raise PermissionDenied('Only the user can view their email')
     
     @login_required
-    def resolve_phone(self, info):
+    def resolve_phone_numbers(self, info):
         if self == info.context.user:
-            return self.phone
-        raise PermissionDenied('Only the user can view their phone number')
+            return self.phone_numbers.all()
+        raise PermissionDenied('Only the user can view their phone numbers')
         
-        
+class PhoneNumberType(DjangoObjectType):
+    class Meta:
+        model = PhoneNumber
+        fields = "__all__"
+
+class PhoneNumberInputType(graphene.InputObjectType):
+    number = graphene.String(required=True)
+    country_code = graphene.String(required=True)
+
 class MessageType(DjangoObjectType):
     class Meta:
         model = Message

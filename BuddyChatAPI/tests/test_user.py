@@ -9,6 +9,7 @@ class UserTestCase(GraphQLTestCase):
         self.user2 = CustomUser.objects.create_user(username='test1', first_name='test1', last_name='test1', password="113456789Test", email="test1@buddy-chat.com", phone="+201234567891")
         self.user1.save()
         self.user2.save()
+        self.user1.phone_numbers.create(number='1234587890', country_code='20')
         # Get token for updating and deleting
         query = '''
             mutation TokenAuth($username: String!, $password: String!) {
@@ -24,8 +25,8 @@ class UserTestCase(GraphQLTestCase):
         self.user2_token = response_token.json()['data']['tokenAuth']['token']
         # Repeated mutation for testing
         self.create_user_mutation = '''
-            mutation CreateUser($username: String!, $email: String!, $password: String!, $phone: String!, $firstName: String!, $lastName: String!) {
-                createUser(username: $username, email: $email, password: $password, phone: $phone, firstName: $firstName, lastName: $lastName) {
+            mutation CreateUser($username: String!, $email: String!, $password: String!, $firstName: String!, $lastName: String!, $phoneNumber: PhoneNumberInputType!) {
+                createUser(username: $username, email: $email, password: $password, firstName: $firstName, lastName: $lastName, phoneNumber: $phoneNumber) {
                     user {
                         id
                         username
@@ -75,24 +76,25 @@ class UserTestCase(GraphQLTestCase):
         self.assertEqual(content['data']['user']['username'], 'test')
         
     def test_create_user_invalid_email(self):
-        response = self.query(query=self.create_user_mutation, variables={'username': 'test2', 'email': 'a@g', 'password': '123456789Test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'})
+        response = self.query(query=self.create_user_mutation, variables={'username': 'test2', 'email': 'a@g', 'password': '123456789Test', 'firstName': 'test2', 'lastName': 'test2', 'phoneNumber': {'number': '1234567890', 'countryCode': '20'}})
         
         content = response.json()
         self.assertIn("errors", content)
         self.assertEqual(content['errors'][0]['message'], 'Invalid email: a@g')
     
     def test_create_user_invalid_phone(self):
-        response = self.query(query=self.create_user_mutation, variables={'username': 'test2', 'email': 'a@g.com', 'password': '123456789Test', 'phone': '+20123456789', 'firstName': 'test2', 'lastName': 'test2'})
+        response = self.query(query=self.create_user_mutation, variables={'username': 'test2', 'email': 'a@g.com', 'password': '123456789Test', 'firstName': 'test2', 'lastName': 'test2', 'phoneNumber': {'number': '12345', 'countryCode': '20'}})
         
         content = response.json()
         self.assertIn("errors", content)
-        self.assertEqual(content['errors'][0]['message'], 'Phone number must be 13 characters long')
+        self.assertEqual(content['errors'][0]['message'], 'Phone number must be between 8 and 15 characters long')
         
     def test_create_user_invalid_password(self):
         # check for digits in password
+        phone_number = {'number': '1234567890', 'countryCode': '20'}
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@g.com', 'password': 'aaaaaaaa', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
+            variables={'username': 'test2', 'email': 'a@g.com', 'password': 'aaaaaaaa', 'firstName': 'test2', 'lastName': 'test2', 'phoneNumber': phone_number}
         )
         
         content = response.json()
@@ -102,7 +104,7 @@ class UserTestCase(GraphQLTestCase):
         # check for letters in password
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
+            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789',  'phoneNumber': phone_number, 'firstName': 'test2', 'lastName': 'test2'}
         )
         
         content = response.json()
@@ -112,7 +114,7 @@ class UserTestCase(GraphQLTestCase):
         # check for uppercase in password
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
+            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789test','phoneNumber': phone_number, 'firstName': 'test2', 'lastName': 'test2'}
         )
         
         content = response.json()
@@ -122,7 +124,7 @@ class UserTestCase(GraphQLTestCase):
         # check for lowercase in password
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789TEST', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
+            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789TEST', 'phoneNumber': phone_number, 'firstName': 'test2', 'lastName': 'test2'}
         )
         
         content = response.json()
@@ -133,7 +135,7 @@ class UserTestCase(GraphQLTestCase):
     def test_create_user_invalid_username(self):
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 't', 'email': 'a@f.com', 'password': '123456789Test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
+            variables={'username': 't', 'email': 'a@f.com', 'password': '123456789Test', 'phoneNumber': {'number': '1234567895', 'countryCode': '20'}, 'firstName': 'test2', 'lastName': 'test2'}
         )
         
         content = response.json()
@@ -141,9 +143,10 @@ class UserTestCase(GraphQLTestCase):
         self.assertEqual(content['errors'][0]['message'], 'Username must be at least 4 characters long')
         
     def test_create_user_invalid_first_name(self):
+        phone_number = {'number': '1234567895', 'countryCode': '20'}
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phone': '+201234567897', 'firstName': 't', 'lastName': 'test2'}
+            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phoneNumber': phone_number, 'firstName': 't', 'lastName': 'test2'}
         )
         
         content = response.json()
@@ -151,9 +154,10 @@ class UserTestCase(GraphQLTestCase):
         self.assertEqual(content['errors'][0]['message'], 'First name must be at least 2 characters long')
         
     def test_create_user_invalid_last_name(self):
+        phone_number = {'number': '1234567895', 'countryCode': '20'}
         response = self.query(
                 query=self.create_user_mutation, 
-                variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 't'}
+                variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phoneNumber': phone_number, 'firstName': 'test2', 'lastName': 't'}
             )
                 
         content = response.json()
@@ -161,9 +165,10 @@ class UserTestCase(GraphQLTestCase):
         self.assertEqual(content['errors'][0]['message'], 'Last name must be at least 2 characters long')
         
     def test_create_user(self):
+        phone_number = {'number': '1234567895', 'countryCode': '20'}
         response = self.query(
             query=self.create_user_mutation, 
-            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phone': '+201234567897', 'firstName': 'test2', 'lastName': 'test2'}
+            variables={'username': 'test2', 'email': 'a@f.com', 'password': '123456789Test', 'phoneNumber': phone_number, 'firstName': 'test2', 'lastName': 'test2'}
         )
         
         content = response.json()
@@ -248,3 +253,44 @@ class UserTestCase(GraphQLTestCase):
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['deleteUser']['userId'], user_id)
         self.assertEqual(CustomUser.objects.filter(id=user_id).count(), 0)
+
+    def test_add_phone_number(self):
+        query = '''
+            mutation AddPhoneNumber($number: String!, $countryCode: String!) {
+                addPhoneNumber(number: $number, countryCode: $countryCode) {
+                    phoneNumber {
+                        number
+                        countryCode
+                    }
+                }
+            }
+        '''
+        response = self.query(
+            query=query,
+            variables={'number': '1234567836', 'countryCode': '20'},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['addPhoneNumber']['phoneNumber']['number'], '1234567836')
+        self.assertEqual(content['data']['addPhoneNumber']['phoneNumber']['countryCode'], '20')
+        
+    def test_remove_phone_number(self):
+        query = '''
+            mutation RemovePhoneNumber($phone_id: Int!) {
+                removePhoneNumber(phoneId: $phone_id) {
+                    phoneId
+                }
+            }
+        '''
+        phone = self.user1.phone_numbers.first()
+        phone_id = phone.id
+        response = self.query(
+            query=query,
+            variables={'phone_id': phone_id},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['removePhoneNumber']['phoneId'], phone_id)
+        self.assertEqual(self.user1.phone_numbers.count(), 0)
