@@ -34,6 +34,10 @@ def validate_user_data(username, email, password, phone, first_name, last_name):
         raise ValidationError('Username must be at least 4 characters long')
     if len(phone) != 13:
         raise ValidationError('Phone number must be 13 characters long')
+    if not phone.startswith('+'):
+        raise ValidationError('Phone number must start with "+"')
+    if not phone[1:].isdigit():
+        raise ValidationError('Phone number must contain only digits')
     if len(first_name) < 2:
         raise ValidationError('First name must be at least 2 characters long')
     if len(last_name) < 2:
@@ -66,6 +70,22 @@ def validate_chat_message(chat: Chat, sender_id):
     # Case 2: A user is trying to send a message to a user who is not a member of the chat
     if chat.user1_id != sender_id and chat.user2_id != sender_id:
         raise ValidationError(f'A user is not a member of this chat')
+    return True
+
+def validate_update_chat_message(chat_message, sender_id):
+    if chat_message.message.sender.id != sender_id:
+        raise PermissionDenied('You are not allowed to update this message')
+    return True
+
+def validate_delete_chat_message(chat_message, sender_id):
+    if chat_message.message.sender.id != sender_id:
+        raise PermissionDenied('You are not allowed to delete this message')
+    return True
+
+def validate_delete_chat(chat_id, user):
+    chat = get_object_or_404(Chat, pk=chat_id)
+    if chat.user1 != user and chat.user2 != user:
+        raise PermissionDenied('You are not allowed to delete this chat')
     return True
 
 def validate_group_title(title):

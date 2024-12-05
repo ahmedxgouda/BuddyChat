@@ -6,6 +6,7 @@ from ..types import CustomUserType
 from ..validators import validate_user_data
 from graphql_jwt.decorators import login_required
 from django.utils import timezone
+import bleach
 
 class ObtainJSONWebTokenCustom(ObtainJSONWebToken):
     @classmethod
@@ -31,6 +32,10 @@ class CreateUser(graphene.Mutation):
     
     def mutate(self, info, username, email, password, phone, first_name, last_name):
         validate_user_data(username, email, password, phone, first_name, last_name)
+        cleaner = bleach.sanitizer.Cleaner()
+        username = cleaner.clean(username)
+        first_name = cleaner.clean(first_name)
+        last_name = cleaner.clean(last_name)
         user = CustomUser.objects.create_user(username=username, email=email, password=password, phone=phone, first_name=first_name, last_name=last_name)
         user.save()
         return CreateUser(user=user)
@@ -47,14 +52,15 @@ class UpdateUser(graphene.Mutation):
     @login_required
     def mutate(self, info, first_name, last_name, profile_picture, bio):
         user = info.context.user
+        cleaner = bleach.sanitizer.Cleaner()
         if first_name:
-            user.first_name = first_name
+            user.first_name = cleaner.clean(first_name)
         if last_name:
-            user.last_name = last_name
+            user.last_name = cleaner.clean(last_name)
         if profile_picture:
-            user.profile_pic = profile_picture
+            user.profile_pic = cleaner.clean(profile_picture)
         if bio:
-            user.bio = bio
+            user.bio = cleaner.clean(bio)
             user.updated_at = timezone.now()
         user.save()
         return UpdateUser(user=user)
