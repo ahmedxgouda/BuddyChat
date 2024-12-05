@@ -93,7 +93,7 @@ class DeleteChatMessage(graphene.Mutation):
                 last_message = chat_message.chat.chat_messages.order_by('-message__date').first()
                 chat_message.chat.last_message = last_message
             chat_message.chat.save()
-        chat_message.delete()
+        chat_message.message.delete()
         return DeleteChatMessage(chat_message_id=chat_message_id)
 
 class ChatMutations(graphene.ObjectType):
