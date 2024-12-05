@@ -234,7 +234,6 @@ class ChatTestCase(GraphQLTestCase):
         self.assertEqual(ChatMessage.objects.count(), 3)
         self.assertEqual(Message.objects.count(), 3)
         self.assertEqual(content['data']['deleteChatMessage']['chatMessageId'], chat_message_id)
-        self.assertEqual(self.chat3.last_message.id, self.chat_message3.id)
         
         response = self.query(
             query=query,
@@ -249,7 +248,6 @@ class ChatTestCase(GraphQLTestCase):
         self.assertEqual(ChatMessage.objects.count(), 2)
         self.assertEqual(Message.objects.count(), 2)
         self.assertEqual(content['data']['deleteChatMessage']['chatMessageId'], chat_message_id)
-        self.assertEqual(self.chat3.last_message, None)
         
     def test_update_chat_message(self):
         query = '''

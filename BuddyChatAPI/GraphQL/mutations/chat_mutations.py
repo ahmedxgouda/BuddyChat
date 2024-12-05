@@ -86,14 +86,20 @@ class DeleteChatMessage(graphene.Mutation):
         validate_delete_chat_message(chat_message, info.context.user.id)
         
         # If the message being deleted is the last message in the chat, update the last_message field of the chat
-        if chat_message.chat.last_message.id == chat_message.id:
-            if chat_message.chat.chat_messages.count() == 1:
+        chat = chat_message.chat
+        if chat.last_message.id == chat_message.id:
+            message = chat_message.message
+            chat_message.delete()
+            message.delete()
+            
+            if chat.chat_messages.count() == 0:
                 chat_message.chat.last_message = None
             else:
-                last_message = chat_message.chat.chat_messages.order_by('-message__date').first()
-                chat_message.chat.last_message = last_message
-            chat_message.chat.save()
-        chat_message.message.delete()
+                last_message = chat.chat_messages.order_by('-message__date').first()
+                chat.last_message = last_message
+            chat.save()
+        else:
+            chat_message.message.delete()
         return DeleteChatMessage(chat_message_id=chat_message_id)
 
 class ChatMutations(graphene.ObjectType):

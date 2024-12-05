@@ -19,6 +19,9 @@ class PhoneNumber(models.Model):
 
     class Meta:
         unique_together = ('number', 'country_code')
+        
+    def __str__(self):
+        return f'+{self.country_code} {self.number}'
 
 
 class Message(models.Model):
@@ -28,7 +31,10 @@ class Message(models.Model):
     read_at = models.DateTimeField(null=True, db_index=True)
     
     class Meta:
-        ordering = ('date',)
+        ordering = ('-date',)
+        
+    def __str__(self):
+        return f'A message from {self.sender} at {self.date} - {self.content}'
         
 class Chat(models.Model):
     user1 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user1_chats', db_index=True)
@@ -37,7 +43,7 @@ class Chat(models.Model):
     last_message = models.ForeignKey('ChatMessage', on_delete=models.SET_NULL, null=True, related_name='last_message')
     
     def __str__(self):
-        return f'{self.user1} - {self.user2}'
+        return f'Chat between {self.user1} and {self.user2}, Archived: {self.archived}'
     
     class Meta:
         unique_together = ('user1', 'user2')
@@ -47,6 +53,9 @@ class Chat(models.Model):
 class ChatMessage(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='chat_messages')
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='chat_messages')
+    
+    def __str__(self):
+        return f'{self.chat} - {self.message}'
     
 class UserGroup(models.Model):
     title = models.CharField(max_length=100, db_index=True)
@@ -59,6 +68,9 @@ class UserGroup(models.Model):
     last_message = models.ForeignKey('GroupMessage', on_delete=models.SET_NULL, null=True, related_name='last_message')
     class Meta:
         ordering = ('-last_message__message__date',)
+        
+    def __str__(self):
+        return f'A group titled {self.title} created by {self.created_by} - Last message: {self.last_message}, Archived: {self.archived}'
     
 class GroupMessage(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='group_messages')
