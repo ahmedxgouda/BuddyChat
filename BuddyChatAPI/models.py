@@ -37,16 +37,13 @@ class Message(models.Model):
         return f'A message from {self.sender} at {self.date} - {self.content}'
         
 class Chat(models.Model):
-    user1 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user1_chats', db_index=True)
-    user2 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user2_chats', db_index=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='chats', db_index=True)
     archived = models.BooleanField(default=False, db_index=True)
     last_message = models.ForeignKey('ChatMessage', on_delete=models.SET_NULL, null=True, related_name='last_message')
     
     def __str__(self):
-        return f'Chat between {self.user1} and {self.user2}, Archived: {self.archived}'
-    
+        return f'A chat with {self.user} - Last message: {self.last_message}, Archived: {self.archived}'
     class Meta:
-        unique_together = ('user1', 'user2')
         ordering = ('-last_message__message__date',)
     
 
@@ -71,14 +68,7 @@ class UserGroup(models.Model):
         
     def __str__(self):
         return f'A group titled {self.title} created by {self.created_by} - Last message: {self.last_message}, Archived: {self.archived}'
-    
-class GroupMessage(models.Model):
-    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='group_messages')
-    user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, related_name='group_messages')
-    
-    class Meta:
-        ordering = ('-message__date',)
-    
+        
 class GroupMember(models.Model):
     user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, related_name='members')
     member = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_groups')
@@ -88,6 +78,14 @@ class GroupMember(models.Model):
     class Meta:
         unique_together = ('user_group', 'member')
         ordering = ('joined_at',)
+
+class GroupMessage(models.Model):
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='group_messages')
+    user_group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, related_name='group_messages')
+    group_member = models.ForeignKey(GroupMember, on_delete=models.CASCADE, related_name='group_messages')
+    
+    class Meta:
+        ordering = ('-message__date',)
         
 class Notification(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='notifications')
