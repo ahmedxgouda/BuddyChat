@@ -46,7 +46,7 @@ class Chat(models.Model):
         return f'Chat between {self.user1} and {self.user2}, Archived: {self.archived}'
     
     class Meta:
-        unique_together = ('user1', 'user2')
+        unique_together = ('user', 'other_user')
         ordering = ('-last_message__message__date',)
     
 
