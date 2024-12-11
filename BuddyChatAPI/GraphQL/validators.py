@@ -55,10 +55,6 @@ def validate_message_content(content):
         raise ValidationError('Message content cannot be empty')
     return True
 
-def validate_chat_users(user1, user2):
-    if Chat.objects.filter(user1=user1, user2=user2).exists() or Chat.objects.filter(user1=user2, user2=user1).exists():
-        raise ValidationError('Chat already exists')
-    return True
     
 def validate_group_member(user_group, member):
     if user_group.members.filter(pk=member.pk).exists():
@@ -68,13 +64,6 @@ def validate_group_member(user_group, member):
 def validate_group_message_sender(group_member):
     if not group_member.exists():
         raise ValidationError('User is not a member of this group')
-    return True
-
-def validate_chat_message(chat: Chat, sender_id):
-    # Case 1: A user is trying to send a message to themselves
-    # Case 2: A user is trying to send a message to a user who is not a member of the chat
-    if chat.user1_id != sender_id and chat.user2_id != sender_id:
-        raise ValidationError(f'A user is not a member of this chat')
     return True
 
 def validate_update_chat_message(chat_message, sender_id):

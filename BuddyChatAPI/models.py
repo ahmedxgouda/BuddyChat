@@ -38,6 +38,7 @@ class Message(models.Model):
         
 class Chat(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='chats', db_index=True)
+    other_user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='other_user_chats', db_index=True, null=True)
     archived = models.BooleanField(default=False, db_index=True)
     last_message = models.ForeignKey('ChatMessage', on_delete=models.SET_NULL, null=True, related_name='last_message')
     
