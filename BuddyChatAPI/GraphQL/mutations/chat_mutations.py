@@ -1,28 +1,30 @@
 import graphene
 from django.shortcuts import get_object_or_404
 from graphql_jwt.decorators import login_required
-from ..validators import validate_chat_users, validate_chat_message, validate_delete_chat, validate_update_chat_message, validate_delete_chat_message
+from ..validators import validate_delete_chat, validate_update_chat_message, validate_delete_chat_message
 from ..helpers import create_message
-from ...models import Chat, ChatMessage, CustomUser, Notification
+from ...models import Chat, ChatMessage, Notification, CustomUser
 from ..types import ChatType, ChatMessageType
 import bleach
 
 class CreateChat(graphene.Mutation):
+    
     class Arguments:
-        user1_id = graphene.Int()
-        user2_id = graphene.Int()
-        
+        other_user_id = graphene.Int()
+
     chat = graphene.Field(ChatType)
+    other_chat = graphene.Field(ChatType)
     
     @login_required
-    def mutate(self, info, user1_id, user2_id):
-        user1 = get_object_or_404(CustomUser, pk=user1_id)
-        user2 = get_object_or_404(CustomUser, pk=user2_id)
-        validate_chat_users(user1, user2)
-        chat = Chat.objects.create(user1=user1, user2=user2)
+    def mutate(self, info, other_user_id):
+        user = info.context.user
+        other_user = get_object_or_404(CustomUser, pk=other_user_id)
+        chat = Chat.objects.create(user=user, other_user=other_user)
         chat.save()
-        return CreateChat(chat=chat)
-    
+        other_user_chat = Chat.objects.create(user=other_user, other_user=user)
+        other_user_chat.save()
+        return CreateChat(chat=chat, other_chat=other_user_chat)
+
 class CreateChatMessage(graphene.Mutation):
     class Arguments:
         chat_id = graphene.Int()
@@ -34,13 +36,17 @@ class CreateChatMessage(graphene.Mutation):
     def mutate(self, info, chat_id, content):
         chat = get_object_or_404(Chat, pk=chat_id)
         sender_id = info.context.user.id
-        validate_chat_message(chat, sender_id)
+        receiver = chat.other_user
+        receiver_chat = Chat.objects.get(user=receiver, other_user=info.context.user)
         message = create_message(sender_id, content)
         chat_message = ChatMessage.objects.create(chat=chat, message=message)
+        receiver_chat_message = ChatMessage.objects.create(chat=receiver_chat, message=message)
         chat_message.save()
+        receiver_chat_message.save()
         chat.last_message = chat_message
+        receiver_chat.last_message = receiver_chat_message
         chat.save()
-        receiver = chat.user1 if chat.user1_id != sender_id else chat.user2
+        receiver_chat.save()
         notification = Notification.objects.create(receiver=receiver, message=message)
         notification.save()
         return CreateChatMessage(chat_message=chat_message)
@@ -71,7 +77,6 @@ class UpdateChatMessage(graphene.Mutation):
         validate_update_chat_message(chat_message, info.context.user.id)
         chat_message.message.content = bleach.clean(content)
         chat_message.message.save()
-        chat_message.save()
         return UpdateChatMessage(chat_message=chat_message)
 
 class DeleteChatMessage(graphene.Mutation):
@@ -87,19 +92,22 @@ class DeleteChatMessage(graphene.Mutation):
         
         # If the message being deleted is the last message in the chat, update the last_message field of the chat
         chat = chat_message.chat
+        other_user_chat = Chat.objects.get(user=chat.other_user, other_user=info.context.user)
         if chat.last_message.id == chat_message.id:
             message = chat_message.message
-            chat_message.delete()
             message.delete()
             
-            if chat.chat_messages.count() == 0:
-                chat_message.chat.last_message = None
-            else:
-                last_message = chat.chat_messages.order_by('-message__date').first()
-                chat.last_message = last_message
+            # If the message being deleted is the last message in the chat, update the last_message field of the chat
+            last_message = chat.chat_messages.order_by('-message__date').first()
+            chat.last_message = last_message
             chat.save()
         else:
             chat_message.message.delete()
+            
+        if other_user_chat.last_message.id == chat_message.id:
+            last_message = other_user_chat.chat_messages.order_by('-message__date').first()
+            other_user_chat.last_message = last_message
+            other_user_chat.save()
         return DeleteChatMessage(chat_message_id=chat_message_id)
 
 class ChatMutations(graphene.ObjectType):

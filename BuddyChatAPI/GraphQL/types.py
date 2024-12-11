@@ -6,7 +6,7 @@ from django.core.exceptions import PermissionDenied
 class CustomUserType(DjangoObjectType):
     class Meta:
         model = CustomUser
-        exclude = ('password',)
+        exclude = ('password', 'other_user_chats', 'is_superuser', 'is_staff', 'groups')
         
     notifications = graphene.List('BuddyChatAPI.GraphQL.types.NotificationType')
     email = graphene.String()

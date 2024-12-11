@@ -1,5 +1,3 @@
-from graphql_jwt import Verify, Refresh, ObtainJSONWebToken
-from graphql_jwt.exceptions import JSONWebTokenError
 import graphene
 from ...models import CustomUser, PhoneNumber
 from ..types import CustomUserType, PhoneNumberType, PhoneNumberInputType
@@ -8,17 +6,40 @@ from graphql_jwt.decorators import login_required
 from django.utils import timezone
 import bleach
 from django.core.exceptions import PermissionDenied
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken, AuthenticationFailed
+from django.contrib.auth import authenticate
 
-class ObtainJSONWebTokenCustom(ObtainJSONWebToken):
-    @classmethod
-    def resolve(cls, root, info, **kwargs):
-        response = super().resolve(root, info, **kwargs)
-        user = info.context.user
-        if not user.is_authenticated:
-            raise JSONWebTokenError('Please, enter valid credentials')
-        # if not EmailAddress.objects.filter(user=user, verified=True).exists():
-        #     raise JSONWebTokenError('Please, verify your email address')
-        return response
+class Login(graphene.Mutation):
+    class Arguments:
+        username = graphene.String()
+        password = graphene.String()
+        
+    access_token = graphene.String()
+    refresh_token = graphene.String()
+    
+    def mutate(self, info, username, password):
+        user = authenticate(username=username, password=password)
+        if user is None:
+            raise AuthenticationFailed('Please, enter valid credentials')
+        refresh_token = RefreshToken.for_user(user)
+        return Login(access_token=str(refresh_token.access_token), refresh_token=str(refresh_token))
+    
+class Refresh(graphene.Mutation):
+    class Arguments:
+        refresh_token = graphene.String()
+        
+    access_token = graphene.String()
+    refresh_token = graphene.String()
+    
+    def mutate(self, info, refresh_token):
+        try:
+            refreshToken = RefreshToken(refresh_token)
+            access_token = str(refreshToken.access_token)
+            refresh_token = str(refreshToken)
+        except TokenError:
+            raise InvalidToken('Token is invalid or expired')
+        return Refresh(access_token=access_token, refresh_token=refresh_token)
     
 class CreateUser(graphene.Mutation):
     class Arguments:
@@ -77,7 +98,7 @@ class ChangePassword(graphene.Mutation):
     def mutate(self, info, old_password, new_password):
         user = info.context.user
         if not user.check_password(old_password):
-            raise JSONWebTokenError('Please, enter valid credentials')
+            raise AuthenticationFailed('Please, enter valid credentials')
         user.set_password(new_password)
         user.save()
         return ChangePassword(user=user)
@@ -91,7 +112,7 @@ class DeleteUser(graphene.Mutation):
     def mutate(self, info, password):
         user = info.context.user
         if not user.check_password(password):
-            raise JSONWebTokenError('Please, enter valid credentials')
+            raise AuthenticationFailed('Please, enter valid credentials')
         user_id = user.id
         user.delete()
         return DeleteUser(user_id=user_id)
@@ -155,8 +176,7 @@ class RemovePhoneNumber(graphene.Mutation):
         return RemovePhoneNumber(phone_id=phone_id)
 
 class AuthMutation(graphene.ObjectType):
-    token_auth = ObtainJSONWebTokenCustom.Field()
-    verify_token = Verify.Field()
+    login = Login.Field()
     refresh_token = Refresh.Field()
     create_user = CreateUserWithPhoneNumber.Field()
     add_phone_number = AddPhoneNumber.Field()
