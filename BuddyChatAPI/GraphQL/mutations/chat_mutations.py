@@ -1,7 +1,7 @@
 import graphene
 from django.shortcuts import get_object_or_404
 from graphql_jwt.decorators import login_required
-from ..validators import validate_delete_chat, validate_update_chat_message, validate_delete_chat_message
+from ..validators import validate_delete_chat, validate_update_chat_message, validate_delete_chat_message, validate_unsend_chat_message
 from ..helpers import create_message
 from ...models import Chat, ChatMessage, Notification, CustomUser
 from ..types import ChatType, ChatMessageType
@@ -79,6 +79,40 @@ class UpdateChatMessage(graphene.Mutation):
         chat_message.message.save()
         return UpdateChatMessage(chat_message=chat_message)
 
+class UnsendChatMessage(graphene.Mutation):
+    class Arguments:
+        chat_message_id = graphene.Int()
+        
+    chat_message_id = graphene.Int()
+    
+    @login_required
+    def mutate(self, info, chat_message_id):
+        chat_message = get_object_or_404(ChatMessage, pk=chat_message_id)
+        validate_unsend_chat_message(chat_message, info.context.user.id)
+        chat = chat_message.chat
+        other_user_chat = Chat.objects.get(user=chat.other_user, other_user=info.context.user)
+        message = chat_message.message
+        last_message_id = chat.last_message.id
+        chat_message_id = chat_message.id
+        other_user_chat_message = ChatMessage.objects.get(chat=other_user_chat, message=message)
+        other_user_chat_message_id = other_user_chat_message.id
+        other_user_chat_last_message_id = other_user_chat.last_message.id
+        message.delete()
+        
+        # If the message being deleted is the last message in the chat, update the last_message field of the chat
+        if last_message_id == chat_message_id:
+            last_message = chat.chat_messages.order_by('-message__date').first()
+            chat.last_message = last_message
+            chat.save()
+            
+        # If the message being deleted is the last message in the other user's chat, update the last_message field of the other user's chat
+        if other_user_chat_last_message_id == other_user_chat_message_id:
+            last_message = other_user_chat.chat_messages.order_by('-message__date').first()
+            other_user_chat.last_message = last_message
+            other_user_chat.save()
+        
+        return UnsendChatMessage(chat_message_id=chat_message_id)
+
 class DeleteChatMessage(graphene.Mutation):
     class Arguments:
         chat_message_id = graphene.Int()
@@ -89,30 +123,22 @@ class DeleteChatMessage(graphene.Mutation):
     def mutate(self, info, chat_message_id):
         chat_message = get_object_or_404(ChatMessage, pk=chat_message_id)
         validate_delete_chat_message(chat_message, info.context.user.id)
+        chat = chat_message.chat
+        last_message_id = chat.last_message.id
+        chat_message_id = chat_message.id
+        chat_message.delete()
         
         # If the message being deleted is the last message in the chat, update the last_message field of the chat
-        chat = chat_message.chat
-        other_user_chat = Chat.objects.get(user=chat.other_user, other_user=info.context.user)
-        if chat.last_message.id == chat_message.id:
-            message = chat_message.message
-            message.delete()
-            
-            # If the message being deleted is the last message in the chat, update the last_message field of the chat
+        if last_message_id == chat_message_id:
             last_message = chat.chat_messages.order_by('-message__date').first()
             chat.last_message = last_message
             chat.save()
-        else:
-            chat_message.message.delete()
-            
-        if other_user_chat.last_message.id == chat_message.id:
-            last_message = other_user_chat.chat_messages.order_by('-message__date').first()
-            other_user_chat.last_message = last_message
-            other_user_chat.save()
+        
         return DeleteChatMessage(chat_message_id=chat_message_id)
-
 class ChatMutations(graphene.ObjectType):
     create_chat = CreateChat.Field()
     create_chat_message = CreateChatMessage.Field()
     delete_chat = DeleteChat.Field()
     update_chat_message = UpdateChatMessage.Field()
+    unsend_chat_message = UnsendChatMessage.Field()
     delete_chat_message = DeleteChatMessage.Field()
