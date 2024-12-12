@@ -61,9 +61,14 @@ def validate_group_member(user_group, member):
         raise ValidationError('User is already a member of this group')
     return True
 
-def validate_group_message_sender(group_member):
+def validate_group_message_member(group_member):
     if not group_member.exists():
         raise ValidationError('User is not a member of this group')
+    return True
+
+def validate_group_message_sender(group_member, group_message):
+    if group_member.member.id != group_message.message.sender.id:
+        raise PermissionDenied('You are not allowed to modify or unsend this message')
     return True
 
 def validate_update_chat_message(chat_message, sender_id):
@@ -90,6 +95,11 @@ def validate_delete_chat(chat_id, user):
 def validate_group_title(title):
     if len(title) < 2:
         raise ValidationError('Group title must be at least 2 characters long')
+    return True
+
+def validate_group_description(description):
+    if len(description) < 10:
+        raise ValidationError('Group description must be at least 10 characters long')
     return True
 
 def validate_admin(user_group, group_admin):

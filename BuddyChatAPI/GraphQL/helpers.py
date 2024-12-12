@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from .types import CustomUser, UserGroup, GroupMember, Message
+from .types import CustomUser, GroupMember, Message, UserGroupMemberCopy
 from .validators import validate_group_member, validate_message_content
 import bleach
 
@@ -10,6 +10,8 @@ def create_group_member(user_group, member_id, is_admin=False):
     group_member.save()
     user_group.members_count += 1
     user_group.save()
+    user_group_member_copy = UserGroupMemberCopy.objects.create(member=member)
+    user_group_member_copy.save()
     return group_member
 
 def create_message(sender_id, content):

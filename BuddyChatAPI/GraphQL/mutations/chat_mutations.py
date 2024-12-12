@@ -6,6 +6,7 @@ from ..helpers import create_message
 from ...models import Chat, ChatMessage, Notification, CustomUser
 from ..types import ChatType, ChatMessageType
 import bleach
+from django.utils import timezone
 
 class CreateChat(graphene.Mutation):
     
@@ -61,7 +62,8 @@ class DeleteChat(graphene.Mutation):
     def mutate(self, info, chat_id):
         validate_delete_chat(chat_id, info.context.user)
         chat = get_object_or_404(Chat, pk=chat_id)
-        chat.delete()
+        for chat_message in chat.chat_messages.all():
+            chat_message.delete()
         return DeleteChat(chat_id=chat_id)
     
 class UpdateChatMessage(graphene.Mutation):
@@ -78,6 +80,20 @@ class UpdateChatMessage(graphene.Mutation):
         chat_message.message.content = bleach.clean(content)
         chat_message.message.save()
         return UpdateChatMessage(chat_message=chat_message)
+
+class SetChatMessageAsRead(graphene.Mutation):
+    
+    class Arguments:
+        chat_message_id = graphene.Int()
+        
+    chat_message = graphene.Field(ChatMessageType)
+    
+    @login_required
+    def mutate(self, info, chat_message_id):
+        chat_message = get_object_or_404(ChatMessage, pk=chat_message_id)
+        chat_message.message.read_at = timezone.now()
+        chat_message.message.save()
+        return SetChatMessageAsRead(chat_message=chat_message)
 
 class UnsendChatMessage(graphene.Mutation):
     class Arguments:
@@ -135,6 +151,7 @@ class DeleteChatMessage(graphene.Mutation):
             chat.save()
         
         return DeleteChatMessage(chat_message_id=chat_message_id)
+
 class ChatMutations(graphene.ObjectType):
     create_chat = CreateChat.Field()
     create_chat_message = CreateChatMessage.Field()
@@ -142,3 +159,4 @@ class ChatMutations(graphene.ObjectType):
     update_chat_message = UpdateChatMessage.Field()
     unsend_chat_message = UnsendChatMessage.Field()
     delete_chat_message = DeleteChatMessage.Field()
+    set_chat_message_as_read = SetChatMessageAsRead.Field()
