@@ -86,10 +86,9 @@ def validate_unsend_chat_message(chat_message, sender_id):
         raise PermissionDenied('You are not allowed to unsend this message')
     return True
 
-def validate_delete_chat(chat_id, user):
-    chat = get_object_or_404(Chat, pk=chat_id)
+def validate_chat_user(chat, user):
     if chat.user.id != user.id:
-        raise PermissionDenied('You are not allowed to delete this chat')
+        raise PermissionDenied('You are not allowed to modify or delete this chat')
     return True
 
 def validate_group_title(title):

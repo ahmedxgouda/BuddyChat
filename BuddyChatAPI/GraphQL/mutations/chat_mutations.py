@@ -1,7 +1,7 @@
 import graphene
 from django.shortcuts import get_object_or_404
 from graphql_jwt.decorators import login_required
-from ..validators import validate_delete_chat, validate_update_chat_message, validate_delete_chat_message, validate_unsend_chat_message
+from ..validators import validate_chat_user, validate_update_chat_message, validate_delete_chat_message, validate_unsend_chat_message
 from ..helpers import create_message
 from ...models import Chat, ChatMessage, Notification, CustomUser
 from ..types import ChatType, ChatMessageType
@@ -60,8 +60,8 @@ class DeleteChat(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_id):
-        validate_delete_chat(chat_id, info.context.user)
         chat = get_object_or_404(Chat, pk=chat_id)
+        validate_chat_user(chat, info.context.user)
         for chat_message in chat.chat_messages.all():
             chat_message.delete()
         return DeleteChat(chat_id=chat_id)
@@ -152,6 +152,21 @@ class DeleteChatMessage(graphene.Mutation):
         
         return DeleteChatMessage(chat_message_id=chat_message_id)
 
+class SetChatArchived(graphene.Mutation):
+    class Arguments:
+        chat_id = graphene.Int()
+        archived = graphene.Boolean()
+        
+    chat = graphene.Field(ChatType)
+    
+    @login_required
+    def mutate(self, info, chat_id, archived):
+        chat = get_object_or_404(Chat, pk=chat_id)
+        validate_chat_user(chat, info.context.user)
+        chat.archived = archived
+        chat.save()
+        return SetChatArchived(chat=chat)
+
 class ChatMutations(graphene.ObjectType):
     create_chat = CreateChat.Field()
     create_chat_message = CreateChatMessage.Field()
@@ -160,3 +175,4 @@ class ChatMutations(graphene.ObjectType):
     unsend_chat_message = UnsendChatMessage.Field()
     delete_chat_message = DeleteChatMessage.Field()
     set_chat_message_as_read = SetChatMessageAsRead.Field()
+    set_chat_archived = SetChatArchived.Field()
