@@ -87,3 +87,8 @@ class NotificationType(DjangoObjectType):
     class Meta:
         model = Notification
         fields = "__all__"
+
+class UserGroupMemberCopyType(DjangoObjectType):
+    class Meta:
+        model = UserGroupMemberCopy
+        fields = "__all__"

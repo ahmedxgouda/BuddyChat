@@ -2,10 +2,10 @@ import graphene
 import bleach
 from django.shortcuts import get_object_or_404
 from graphql_jwt.decorators import login_required
-from ..validators import validate_group_title, validate_group_message_sender, validate_admin, validate_message_content, validate_group_description, validate_group_message_member
+from ..validators import validate_group_title, validate_group_message_sender, validate_admin, validate_message_content, validate_group_description, validate_group_message_member, validate_group_creator, validate_group_copy_member
 from ..helpers import create_group_member, create_message
 from ...models import UserGroup, GroupMember, GroupMessage, Notification, CustomUser, UserGroupMemberCopy
-from ..types import UserGroupType, GroupMemberType, GroupMessageType
+from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupMemberCopyType
 from django.utils import timezone
 
 class CreateGroup(graphene.Mutation):
@@ -21,9 +21,8 @@ class CreateGroup(graphene.Mutation):
         validate_group_title(title)
         title = bleach.clean(title)
         user_group = UserGroup.objects.create(title=title, created_by=created_by)
-        user_group.save()
-        user_group.members_count = 1
         create_group_member(user_group, created_by_id, is_admin=True)
+        user_group.save()
         return CreateGroup(user_group=user_group)
     
 class CreateGroupMessage(graphene.Mutation):
@@ -202,6 +201,8 @@ class RemoveGroupMember(graphene.Mutation):
         validate_admin(user_group, admin_member)
         group_member = get_object_or_404(GroupMember, user_group_id=user_group_id, member_id=member_id)
         group_member.delete()
+        user_group.members_count -= 1
+        user_group.save()
         return RemoveGroupMember(group_member=group_member)
 
 class LeaveGroup(graphene.Mutation):
@@ -215,8 +216,37 @@ class LeaveGroup(graphene.Mutation):
         user_group = get_object_or_404(UserGroup, pk=user_group_id)
         group_member = user_group.members.get(member=info.context.user)
         group_member.delete()
+        user_group.members_count -= 1
+        user_group.save()
         return LeaveGroup(group_member=group_member)
 
+class RemoveGroup(graphene.Mutation):
+    class Arguments:
+        user_group_id = graphene.Int()
+        
+    user_group_id = graphene.Int()
+    
+    @login_required
+    def mutate(self, info, user_group_id):
+        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+        validate_group_creator(user_group, info.context.user)
+        user_group.delete()
+        return RemoveGroup(user_group_id=user_group_id)
+
+class SetArchiveGroup(graphene.Mutation):
+    class Arguments:
+        user_group_copy_id = graphene.Int()
+        is_archived = graphene.Boolean()
+        
+    user_group_copy = graphene.Field(UserGroupMemberCopyType)
+    
+    @login_required
+    def mutate(self, info, user_group_copy_id, is_archived):
+        user_group_copy = get_object_or_404(UserGroupMemberCopy, pk=user_group_copy_id)
+        validate_group_copy_member(user_group_copy, info.context.user)
+        user_group_copy.is_archived = is_archived
+        user_group_copy.save()
+        return SetArchiveGroup(user_group_copy=user_group_copy)
 
 class GroupMutations(graphene.ObjectType):
     create_group = CreateGroup.Field()
@@ -230,4 +260,5 @@ class GroupMutations(graphene.ObjectType):
     unsend_group_message = UnsendGroupMessage.Field()
     remove_group_member = RemoveGroupMember.Field()
     leave_group = LeaveGroup.Field()
-    
+    remove_group_permanently = RemoveGroup.Field()
+    set_archive_group = SetArchiveGroup.Field()

@@ -64,7 +64,7 @@ class UserGroup(models.Model):
     title = models.CharField(max_length=100, db_index=True)
     description = models.TextField(default='')
     members_count = models.IntegerField(default=0)
-    created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='created_groups')
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='created_groups', null=True)
     group_image = models.ImageField(upload_to='group_images', default='group_images/default.svg')
     updated_at = models.DateTimeField(auto_now=True)
         

@@ -108,3 +108,12 @@ def validate_admin(user_group, group_admin):
         raise PermissionDenied('User is not an admin of this group')
     return True
     
+def validate_group_creator(user_group, creator):
+    if user_group.created_by.id != creator.id:
+        raise PermissionDenied('You are not allowed to modify or delete this group')
+    return True   
+    
+def validate_group_copy_member(group_member_copy, member):
+    if not group_member_copy.member.member.id == member.id:
+        raise ValidationError('You are not allowed to modify or delete this group')
+    return True
