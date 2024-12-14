@@ -10,10 +10,10 @@ class CustomUserType(DjangoObjectType):
         exclude = ('password', 'other_user_chats', 'is_superuser', 'is_staff', 'groups')
         interfaces = (graphene.relay.Node, )
         
-    notifications = DjangoFilterConnectionField('BuddyChatAPI.GraphQL.types.NotificationType', fields=['is_read'])
+    notifications = DjangoFilterConnectionField('BuddyChatAPI.GraphQL.types.NotificationType', fields=['is_read'], max_limit=20)
     email = graphene.String()
     phone_numbers = graphene.List('BuddyChatAPI.GraphQL.types.PhoneNumberType')
-    chats = DjangoFilterConnectionField('BuddyChatAPI.GraphQL.types.ChatType', fields=['archived'])
+    chats = DjangoFilterConnectionField('BuddyChatAPI.GraphQL.types.ChatType', fields=['archived'], max_limit=20)
     
     @login_required
     def resolve_notifications(self, info):

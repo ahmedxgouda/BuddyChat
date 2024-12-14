@@ -11,10 +11,10 @@ from django.core.exceptions import PermissionDenied
 from ..models import CustomUser, GroupMember, Chat, UserGroupMemberCopy, Notification
     
 class Query(graphene.ObjectType):
-    users = DjangoFilterConnectionField(CustomUserType, fields=['username', 'first_name', 'last_name'])
-    chats = DjangoFilterConnectionField(ChatType, fields=['archived'])
-    groups = DjangoFilterConnectionField(UserGroupMemberCopyType, fields=['is_archived'])
-    notifications = DjangoFilterConnectionField(NotificationType, fields=['is_read'])
+    users = DjangoFilterConnectionField(CustomUserType, fields=['username', 'first_name', 'last_name'], max_limit=20)
+    chats = DjangoFilterConnectionField(ChatType, fields=['archived'], max_limit=20)
+    groups = DjangoFilterConnectionField(UserGroupMemberCopyType, fields=['is_archived'], max_limit=20)
+    notifications = DjangoFilterConnectionField(NotificationType, fields=['is_read'], max_limit=20)
     
     chat = graphene.Field(ChatType, id=graphene.ID())
     group = graphene.Field(UserGroupMemberCopyType, id=graphene.ID())
