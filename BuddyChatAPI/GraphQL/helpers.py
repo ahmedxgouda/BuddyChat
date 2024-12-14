@@ -1,11 +1,11 @@
 from django.shortcuts import get_object_or_404
 from .types import CustomUser, GroupMember, Message, UserGroupMemberCopy
-from .validators import validate_group_member, validate_message_content
+from .validators import validate_message_content
 import bleach
+from graphene.relay.node import Node
 
 def create_group_member(user_group, member_id, is_admin=False):
-    member = get_object_or_404(CustomUser, pk=member_id)
-    validate_group_member(user_group, member)
+    member: CustomUser = Node.get_node_from_global_id(member_id)
     group_member = GroupMember.objects.create(user_group=user_group, member=member, is_admin=is_admin)
     user_group.members_count += 1
     user_group_member_copy = UserGroupMemberCopy.objects.create(member=group_member)

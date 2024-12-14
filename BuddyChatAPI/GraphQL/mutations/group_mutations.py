@@ -6,7 +6,7 @@ from graphql_jwt.decorators import login_required
 from ..validators import validate_group_title, validate_group_message_sender, validate_admin, validate_message_content, validate_group_description, validate_group_message_member, validate_group_creator, validate_group_copy_member, validate_group_member
 from ..helpers import create_group_member, create_message
 from ...models import UserGroup, GroupMember, GroupMessage, Notification, CustomUser, UserGroupMemberCopy
-from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupMemberCopyType
+from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupMemberCopyType, MessageType
 from django.utils import timezone
 
 class CreateGroup(graphene.Mutation):
@@ -28,19 +28,20 @@ class CreateGroup(graphene.Mutation):
     
 class CreateGroupMessage(graphene.Mutation):
     class Arguments:
-        user_group_id = graphene.Int()
+        group_copy_id = graphene.ID()
         content = graphene.String()
         
-    group_message = graphene.Field(GroupMessageType)
+    message = graphene.Field(MessageType)
     
     @login_required
-    def mutate(self, info, user_group_id, content):
-        user_group = get_object_or_404(UserGroup, pk=user_group_id)
-        group_member = user_group.members.get(member=info.context.user)
+    def mutate(self, info, group_copy_id, content):
+        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        group_member = group_copy.member
+        user_group = group_copy.member.user_group
         sender_id = info.context.user.id
         
         # check if the sender is a member of the group
-        validate_group_message_member(group_member)
+        validate_group_message_sender(group_member, sender_id)
         content = bleach.clean(content)
         validate_message_content(content)
         message = create_message(sender_id, content)
@@ -54,18 +55,19 @@ class CreateGroupMessage(graphene.Mutation):
             group_member_copy.save()
             notification = Notification.objects.create(receiver=group_member.member, message=message)
             notification.save()
-        return CreateGroupMessage(group_message=group_message)
+        return CreateGroupMessage(message=message)
     
 class CreateGroupMember(graphene.Mutation):
     class Arguments:
-        user_group_id = graphene.Int()
-        member_id = graphene.Int()
+        group_copy_id = graphene.ID()
+        member_id = graphene.ID()
         
     group_member = graphene.Field(GroupMemberType)
     
     @login_required
-    def mutate(self, info, user_group_id, member_id):
-        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+    def mutate(self, info, group_copy_id, member_id):
+        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group = group_copy.member.user_group
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
         group_member = create_group_member(user_group, member_id)

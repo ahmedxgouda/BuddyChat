@@ -1,8 +1,6 @@
 from django.core.exceptions import ValidationError, PermissionDenied
-from ..models import CustomUser, Chat
+from ..models import CustomUser
 from django.core.validators import validate_email
-from django.shortcuts import get_object_or_404
-from ..models import UserGroup
 
 def validate_password(password):
     if len(password) < 8:
@@ -55,20 +53,14 @@ def validate_message_content(content):
         raise ValidationError('Message content cannot be empty')
     return True
 
-    
-def validate_group_member(user_group, member):
-    if user_group.members.filter(pk=member.pk).exists():
-        raise ValidationError('User is already a member of this group')
-    return True
-
 def validate_group_message_member(group_member):
     if not group_member.exists():
         raise ValidationError('User is not a member of this group')
     return True
 
-def validate_group_message_sender(group_member, group_message):
-    if group_member.member.id != group_message.message.sender.id:
-        raise PermissionDenied('You are not allowed to modify or unsend this message')
+def validate_group_message_sender(group_member, sender_id):
+    if group_member.member.id != sender_id:
+        raise PermissionDenied('You are not allowed to create, modify or unsend this message')
     return True
 
 def validate_update_chat_message(chat_message, sender_id):
@@ -103,7 +95,7 @@ def validate_group_description(description):
 
 def validate_admin(user_group, group_admin):
     if not user_group.members.filter(pk=group_admin.pk).exists():
-        raise ValidationError('User is not a member of this group')
+        raise PermissionDenied('User is not a member of this group')
     if not group_admin.is_admin:
         raise PermissionDenied('User is not an admin of this group')
     return True
@@ -115,10 +107,10 @@ def validate_group_creator(user_group, creator):
     
 def validate_group_copy_member(group_member_copy, member):
     if not group_member_copy.member.member.id == member.id:
-        raise ValidationError('You are not allowed to modify or delete this group')
+        raise PermissionDenied('You are not allowed to modify or delete this group')
     return True
 
-def validate_group_member_copy(user_group, member):
+def validate_group_member(user_group, member):
     if not user_group.members.filter(pk=member.pk).exists():
-        raise ValidationError('User is not a member of this group')
+        raise PermissionDenied('User is not a member of this group')
     return True
