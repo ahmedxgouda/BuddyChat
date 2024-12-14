@@ -131,15 +131,13 @@ class GroupTestCase(GraphQLTestCase):
         self.create_group_message_mutation = '''
             mutation CreateGroupMessage($groupCopyId: ID!, $content: String!) {
                 createGroupMessage(groupCopyId: $groupCopyId, content: $content) {
-                    groupMessage {
+                    message {
                         id
-                        message {
+                        content
+                        sender {
                             id
-                            content
-                            sender {
-                                id
-                            }
                         }
+                    
                     }
                 }
             }
@@ -149,10 +147,14 @@ class GroupTestCase(GraphQLTestCase):
             query User($id: ID!) {
                 user(id: $id) {
                     notifications {
-                        id
-                        message {
-                            id
-                            content
+                        edges {
+                            node {
+                                id
+                                message {
+                                    id
+                                    content
+                                }
+                            }
                         }
                     }
                 }
@@ -229,30 +231,36 @@ class GroupTestCase(GraphQLTestCase):
         self.assertEqual(content['data']['createGroup']['userGroup']['title'], 'test2')
         
     def test_create_group_message(self):
+        groupCopyId = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy1.id)
         response = self.query(
             query=self.create_group_message_mutation,
-            variables={'userGroupId': self.group.id, 'content': 'Hello from user1'},
+            variables={'groupCopyId': groupCopyId, 'content': 'Hello from user1'},
             headers={'Authorization': f'JWT {self.user1_token}'}
         )
         
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['createGroupMessage']['groupMessage']['message']['sender']['id'], str(self.user1.id))
+        self.assertEqual(content['data']['createGroupMessage']['message']['content'], 'Hello from user1')
+        self.assertEqual(len(GroupMessage.objects.all()), 20)
         
         # Check if the notification was created
+        user2_global_id = Node.to_global_id('CustomUserType', self.user2.id)
+        user3_global_id = Node.to_global_id('CustomUserType', self.user3.id)
+        user4_global_id = Node.to_global_id('CustomUserType', self.user4.id)
+        
         user2NotificationResponse = self.query(
             query=self.notifications_query,
-            variables={'id': self.user2.id},
+            variables={'id': user2_global_id},
             headers={'Authorization': f'JWT {self.user2_token}'}
         )
         user3NotificationResponse = self.query(
             query=self.notifications_query,
-            variables={'id': self.user3.id},
+            variables={'id': user3_global_id},
             headers={'Authorization': f'JWT {self.user3_token}'}
         )
         user4NotificationResponse = self.query(
             query=self.notifications_query,
-            variables={'id': self.user4.id},
+            variables={'id': user4_global_id},
             headers={'Authorization': f'JWT {self.user4_token}'}
         )
         self.assertResponseNoErrors(user2NotificationResponse)
@@ -261,10 +269,10 @@ class GroupTestCase(GraphQLTestCase):
         user2NotificationsContent = user2NotificationResponse.json()
         user3NotificationsContent = user3NotificationResponse.json()
         user4NotificationsContent = user4NotificationResponse.json()
-        self.assertEqual(len(user2NotificationsContent['data']['user']['notifications']), 1)
-        self.assertEqual(len(user3NotificationsContent['data']['user']['notifications']), 1)
+        self.assertEqual(len(user2NotificationsContent['data']['user']['notifications']["edges"]), 1)
+        self.assertEqual(len(user3NotificationsContent['data']['user']['notifications']["edges"]), 1)
         # User4 is not a member of the group
-        self.assertEqual(len(user4NotificationsContent['data']['user']['notifications']), 0)
+        self.assertEqual(len(user4NotificationsContent['data']['user']['notifications']["edges"]), 0)
         
     def test_create_group_member(self):
         response = self.query(
