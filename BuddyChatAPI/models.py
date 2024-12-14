@@ -82,7 +82,7 @@ class GroupMember(models.Model):
         ordering = ('joined_at',)
 
 class UserGroupMemberCopy(models.Model):
-    member = models.ForeignKey(GroupMember, on_delete=models.CASCADE, related_name='group_members')
+    member = models.ForeignKey(GroupMember, on_delete=models.CASCADE, related_name='group_member')
     is_archived = models.BooleanField(default=False)
     last_message = models.ForeignKey('GroupMessage', on_delete=models.SET_NULL, null=True, related_name='last_message')
     

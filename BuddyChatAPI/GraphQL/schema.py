@@ -1,4 +1,5 @@
 import graphene
+from graphene.relay.node import Node
 from graphene_django.filter import DjangoFilterConnectionField
 from .types import CustomUserType, ChatType, UserGroupType, NotificationType, UserGroupMemberCopyType
 from .mutations.notification_mutations import SetNotificationAsRead
@@ -12,12 +13,12 @@ from ..models import CustomUser, GroupMember, Chat, UserGroupMemberCopy, Notific
 class Query(graphene.ObjectType):
     users = DjangoFilterConnectionField(CustomUserType, fields=['username', 'first_name', 'last_name'])
     chats = DjangoFilterConnectionField(ChatType, fields=['archived'])
-    user_groups = DjangoFilterConnectionField(UserGroupMemberCopyType, fields=['is_archived'])
+    groups = DjangoFilterConnectionField(UserGroupMemberCopyType, fields=['is_archived'])
     notifications = DjangoFilterConnectionField(NotificationType, fields=['is_read'])
     
-    chat = graphene.Field(ChatType, id=graphene.Int())
-    user_group = graphene.Field(UserGroupType, id=graphene.Int())
-    user = graphene.Field(CustomUserType, id=graphene.Int())
+    chat = graphene.Field(ChatType, id=graphene.ID())
+    group = graphene.Field(UserGroupMemberCopyType, id=graphene.ID())
+    user = graphene.Field(CustomUserType, id=graphene.ID())
     
     def resolve_users(self, info, **kwargs):
         return CustomUser.objects.all()
@@ -27,27 +28,28 @@ class Query(graphene.ObjectType):
         return Chat.objects.filter(user=info.context.user)
     
     @login_required
-    def resolve_user_groups(self, info, **kwargs):
+    def resolve_groups(self, info, **kwargs):
         group_member = GroupMember.objects.filter(member=info.context.user)
         user_groups = UserGroupMemberCopy.objects.filter(member__in=group_member)
         return user_groups
     
     @login_required
     def resolve_chat(self, info, id):
-        chat = Chat.objects.get(pk=id)
+        chat: Chat = Node.get_node_from_global_id(info, id)
         if chat.user == info.context.user:
             return chat
         raise PermissionDenied("You are not allowed to view this chat")
     
     @login_required
-    def resolve_user_group(self, info, id):
-        user_group = UserGroupMemberCopy.objects.get(pk=id)
+    def resolve_group(self, info, id):
+        user_group: UserGroupMemberCopy = Node.get_node_from_global_id(info, id)
         if user_group.member.member.id == info.context.user.id:
             return user_group
         raise PermissionDenied("You are not allowed to view this group")
     
     def resolve_user(self, info, id):
-        return CustomUser.objects.get(pk=id)
+        user: CustomUser = Node.get_node_from_global_id(info, id)
+        return user
     
 class Mutation(AuthMutation, GroupMutations, ChatMutations, graphene.ObjectType):
     set_notification_read = SetNotificationAsRead.Field()
