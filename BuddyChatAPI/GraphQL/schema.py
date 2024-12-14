@@ -29,7 +29,7 @@ class Query(graphene.ObjectType):
     @login_required
     def resolve_user_groups(self, info, **kwargs):
         group_member = GroupMember.objects.filter(member=info.context.user)
-        user_groups = UserGroupMemberCopy.objects.filter(member=group_member)
+        user_groups = UserGroupMemberCopy.objects.filter(member__in=group_member)
         return user_groups
     
     @login_required
