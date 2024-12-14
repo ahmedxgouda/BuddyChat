@@ -4,8 +4,8 @@ from .validators import validate_message_content
 import bleach
 from graphene.relay.node import Node
 
-def create_group_member(user_group, member_id, is_admin=False):
-    member: CustomUser = Node.get_node_from_global_id(member_id)
+def create_group_member(user_group, member_id, info, is_admin=False):
+    member: CustomUser = Node.get_node_from_global_id(info, member_id)
     group_member = GroupMember.objects.create(user_group=user_group, member=member, is_admin=is_admin)
     user_group.members_count += 1
     user_group_member_copy = UserGroupMemberCopy.objects.create(member=group_member)

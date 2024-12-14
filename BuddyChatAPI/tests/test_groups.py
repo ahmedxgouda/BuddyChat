@@ -1,5 +1,7 @@
 from graphene_django.utils.testing import GraphQLTestCase
-from ..models import UserGroup, CustomUser, GroupMember, GroupMessage, Message
+from ..models import UserGroup, CustomUser, GroupMember, GroupMessage, Message, UserGroupMemberCopy
+from ..GraphQL.helpers import create_group_member, create_message
+from graphene.relay.node import Node
 
 class GroupTestCase(GraphQLTestCase):
     def setUp(self):
@@ -22,34 +24,62 @@ class GroupTestCase(GraphQLTestCase):
         self.group_member2 = GroupMember.objects.create(user_group=self.group, member=self.user2)
         self.group_member3 = GroupMember.objects.create(user_group=self.group, member=self.user3)
         self.admin_group_member = GroupMember.objects.create(user_group=self.group, member=self.admin_user, is_admin=True)
+        
         self.group_member1.save()
         self.group_member2.save()
         self.group_member3.save()
         self.admin_group_member.save()
         self.group.members_count = 4
         self.group.save()
+        
+        self.group_member_copy1 = UserGroupMemberCopy.objects.create(member=self.group_member1)
+        self.group_member_copy2 = UserGroupMemberCopy.objects.create(member=self.group_member2)
+        self.group_member_copy3 = UserGroupMemberCopy.objects.create(member=self.group_member3)
+        self.group_member_copy4 = UserGroupMemberCopy.objects.create(member=self.admin_group_member)
+        
+        self.group_member_copy1.save()
+        self.group_member_copy2.save()
+        self.group_member_copy3.save()
+        self.group_member_copy4.save()
         # Create messages and group messages
-        self.message1 = Message.objects.create(sender=self.admin_user, content='Hello from admin')
-        self.message2 = Message.objects.create(sender=self.user1, content='Hello from user1')
-        self.message3 = Message.objects.create(sender=self.user2, content='Hello from user2')
-        self.message4 = Message.objects.create(sender=self.user3, content='Hello from user3')
-        self.message1.save()
-        self.message2.save()
-        self.message3.save()
-        self.message4.save()
-        self.group_message1 = GroupMessage.objects.create(user_group=self.group, message=self.message1)
-        self.group_message2 = GroupMessage.objects.create(user_group=self.group, message=self.message2)
-        self.group_message3 = GroupMessage.objects.create(user_group=self.group, message=self.message3)
-        self.group_message4 = GroupMessage.objects.create(user_group=self.group, message=self.message4)
-        self.group_message1.save()
-        self.group_message2.save()
-        self.group_message3.save()
-        self.group_message4.save()
+        self.message1 = create_message(self.user1.id, 'Hello from user1')
+        self.message2 = create_message(self.user1.id, 'Hello from user1')
+        self.message3 = create_message(self.user2.id, 'Hello from user2')
+        self.message4 = create_message(self.user3.id, 'Hello from user3')
+        
+        
+        # Create group messages for message 1
+        self.group_message1 = GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message1)
+        
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message1)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy3, message=self.message1)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy4, message=self.message1)
+        
+        # Create group messages for message 2
+        self.group_message2 = GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message2)
+        
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message2)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy3, message=self.message2)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy4, message=self.message2)
+        
+        # Create group messages for message 3
+        self.group_message3 = GroupMessage.objects.create(user_group_copy=self.group_member_copy3, message=self.message3)
+        
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message3)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message3)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy4, message=self.message3)
+        
+        # Create group messages for message 4
+        self.group_message4 = GroupMessage.objects.create(user_group_copy=self.group_member_copy4, message=self.message4)
+        
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message4)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message4)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy3, message=self.message4)
         
         # Token for authentication
         token_query = '''
-            mutation TokenAuth($username: String!, $password: String!) {
-                tokenAuth(username: $username, password: $password) {
+            mutation Login($username: String!, $password: String!) {
+                login(username: $username, password: $password) {
                     token
                 }
             }
@@ -75,11 +105,11 @@ class GroupTestCase(GraphQLTestCase):
             query=token_query,
             variables={'username': self.user4.username, 'password': '113456789Test'}
         )
-        self.admin_token = admin_token_response.json()['data']['tokenAuth']['token']
-        self.user1_token = user1_token_response.json()['data']['tokenAuth']['token']
-        self.user2_token = user2_token_response.json()['data']['tokenAuth']['token']
-        self.user3_token = user3_token_response.json()['data']['tokenAuth']['token']
-        self.user4_token = user4_token_response.json()['data']['tokenAuth']['token']
+        self.admin_token = admin_token_response.json()['data']['login']['token']
+        self.user1_token = user1_token_response.json()['data']['login']['token']
+        self.user2_token = user2_token_response.json()['data']['login']['token']
+        self.user3_token = user3_token_response.json()['data']['login']['token']
+        self.user4_token = user4_token_response.json()['data']['login']['token']
 
         # Repeated mutation for testing
         self.create_group_mutation = '''
@@ -99,15 +129,13 @@ class GroupTestCase(GraphQLTestCase):
             }
         '''
         self.create_group_message_mutation = '''
-            mutation CreateGroupMessage($userGroupId: Int!, $content: String!) {
-                createGroupMessage(userGroupId: $userGroupId, content: $content) {
+            mutation CreateGroupMessage($groupCopyId: ID!, $content: String!) {
+                createGroupMessage(groupCopyId: $groupCopyId, content: $content) {
                     groupMessage {
                         id
-                        userGroup {
-                            id
-                        }
                         message {
                             id
+                            content
                             sender {
                                 id
                             }
@@ -118,7 +146,7 @@ class GroupTestCase(GraphQLTestCase):
         '''
         
         self.notifications_query = '''
-            query User($id: Int!) {
+            query User($id: ID!) {
                 user(id: $id) {
                     notifications {
                         id
@@ -135,9 +163,41 @@ class GroupTestCase(GraphQLTestCase):
         response = self.query(
             '''
             query {
-                userGroups {
+                groups {
                     edges {
                         node {
+                            id
+                            member {
+                                userGroup {
+                                    id
+                                    title
+                                    description
+                                    membersCount
+                                    createdBy {
+                                        id
+                                        username
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ''',
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(content['data']['groups']['edges']), 1)
+        self.assertEqual(content['data']['groups']['edges'][0]['node']['member']['userGroup']['title'], 'test')
+        
+    def test_query_group(self):
+        query = '''
+            query group($id: ID!) {
+                group(id: $id) {
+                    id
+                    member {
+                        userGroup {
                             id
                             title
                             description
@@ -150,33 +210,12 @@ class GroupTestCase(GraphQLTestCase):
                     }
                 }
             }
-            ''',
-            headers={'Authorization': f'JWT {self.admin_token}'}
-        )
-        content = response.json()
-        self.assertResponseNoErrors(response)
-        self.assertEqual(len(content['data']['userGroups']['edges']), 1)
-        self.assertEqual(content['data']['userGroups']['edges'][0]['node']['title'], self.group.title)
-        
-    def test_query_group(self):
-        query = '''
-            query userGroup($id: Int!) {
-                userGroup(id: $id) {
-                    id
-                    title
-                    description
-                    membersCount
-                    createdBy {
-                        id
-                        username
-                    }
-                }
-            }
         '''
-        response = self.query(query=query, variables={'id': self.group.id}, headers={'Authorization': f'JWT {self.user1_token}'})
+        group_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy1.id)
+        response = self.query(query=query, variables={'id': group_id}, headers={'Authorization': f'JWT {self.user1_token}'})
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['userGroup']['title'], 'test')
+        self.assertEqual(content['data']['group']['member']['userGroup']['title'], 'test')
         
     def test_create_group(self):
         response = self.query(

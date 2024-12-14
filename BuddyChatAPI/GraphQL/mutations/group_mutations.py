@@ -22,7 +22,7 @@ class CreateGroup(graphene.Mutation):
         validate_group_title(title)
         title = bleach.clean(title)
         user_group = UserGroup.objects.create(title=title, created_by=created_by)
-        create_group_member(user_group, created_by_id, is_admin=True)
+        create_group_member(user_group, created_by_id, info, is_admin=True)
         user_group.save()
         return CreateGroup(user_group=user_group)
     
