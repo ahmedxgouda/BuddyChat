@@ -1,8 +1,9 @@
 import graphene
 import bleach
 from django.shortcuts import get_object_or_404
+from graphene.relay.node import Node
 from graphql_jwt.decorators import login_required
-from ..validators import validate_group_title, validate_group_message_sender, validate_admin, validate_message_content, validate_group_description, validate_group_message_member, validate_group_creator, validate_group_copy_member
+from ..validators import validate_group_title, validate_group_message_sender, validate_admin, validate_message_content, validate_group_description, validate_group_message_member, validate_group_creator, validate_group_copy_member, validate_group_member
 from ..helpers import create_group_member, create_message
 from ...models import UserGroup, GroupMember, GroupMessage, Notification, CustomUser, UserGroupMemberCopy
 from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupMemberCopyType
@@ -72,34 +73,37 @@ class CreateGroupMember(graphene.Mutation):
 
 class ChangeAdmin(graphene.Mutation):
     class Arguments:
-        user_group_id = graphene.Int()
-        member_id = graphene.Int()
+        group_copy_id = graphene.ID()
+        member_id = graphene.ID()
         is_admin = graphene.Boolean()
         
     group_member = graphene.Field(GroupMemberType)
     
     @login_required
-    def mutate(self, info, user_group_id, member_id, is_admin):
-        group_member = get_object_or_404(GroupMember, user_group_id=user_group_id, member_id=member_id)
-        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+    def mutate(self, info, group_copy_id, member_id, is_admin):
+        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group = group_copy.member.user_group
+        group_member: GroupMember = Node.get_node_from_global_id(info, member_id)
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
+        validate_group_member(user_group, group_member)
         group_member.is_admin = is_admin
         group_member.save()
         return ChangeAdmin(group_member=group_member)
     
 class UpdateGroup(graphene.Mutation):
     class Arguments:
-        user_group_id = graphene.Int()
+        group_copy_id = graphene.ID()
         title = graphene.String(required=False)
         description = graphene.String(required=False)
         group_image = graphene.String(required=False)
         
-    user_group = graphene.Field(UserGroupType)
+    group_copy = graphene.Field(UserGroupMemberCopyType)
     
     @login_required
-    def mutate(self, info, user_group_id, title, description, group_image):
-        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+    def mutate(self, info, group_copy_id, title=None, description=None, group_image=None):
+        user_group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group = user_group_copy.member.user_group
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
         if title:
@@ -114,31 +118,32 @@ class UpdateGroup(graphene.Mutation):
         if title or description or group_image:
             user_group.updated_at = timezone.now()
             user_group.save()
-        return UpdateGroup(user_group=user_group)
+        return UpdateGroup(group_copy=user_group_copy)
 
 class DeleteGroup(graphene.Mutation):
     class Arguments:
-        user_group_copy_id = graphene.Int()
+        user_group_copy_id = graphene.ID()
         
-    user_group_copy_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
     def mutate(self, info, user_group_copy_id):
-        user_group_copy = get_object_or_404(UserGroupMemberCopy, pk=user_group_copy_id)
+        user_group_copy = Node.get_node_from_global_id(info, user_group_copy_id)
+        validate_group_copy_member(user_group_copy, info.context.user)
         for group_message in user_group_copy.group_messages.all():
             group_message.delete()
-        return DeleteGroup(user_group_copy_id=user_group_copy_id)
+        return DeleteGroup(success=True)
 
 class UpdateGroupMessage(graphene.Mutation):
     class Arguments:
-        group_message_id = graphene.Int()
+        group_message_id = graphene.ID()
         content = graphene.String()
         
     group_message = graphene.Field(GroupMessageType)
     
     @login_required
     def mutate(self, info, group_message_id, content):
-        group_message = get_object_or_404(GroupMessage, pk=group_message_id)
+        group_message: GroupMessage = Node.get_node_from_global_id(info, group_message_id)
         group_member = group_message.user_group_copy.member
         validate_group_message_sender(group_member, group_message)
         content = bleach.clean(content)
@@ -149,29 +154,29 @@ class UpdateGroupMessage(graphene.Mutation):
 
 class DeleteGroupMessage(graphene.Mutation):
     class Arguments:
-        group_message_id = graphene.Int()
+        group_message_id = graphene.ID()
         
-    group_message_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
     def mutate(self, info, group_message_id):
-        group_message = get_object_or_404(GroupMessage, pk=group_message_id)
+        group_message = Node.get_node_from_global_id(info, group_message_id)
         last_message_id = group_message.user_group_copy.last_message.id
         group_message.delete()
         if last_message_id == group_message.id:
             group_message.user_group_copy.last_message = group_message.user_group_copy.group_messages.first()
             group_message.user_group_copy.save()
-        return DeleteGroupMessage(group_message_id=group_message_id)
+        return DeleteGroupMessage(success=True)
 
 class UnsendGroupMessage(graphene.Mutation):
     class Arguments:
-        group_message_id = graphene.Int()
+        group_message_id = graphene.ID()
         
-    group_message_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
     def mutate(self, info, group_message_id):
-        group_message = get_object_or_404(GroupMessage, pk=group_message_id)
+        group_message = Node.get_node_from_global_id(info, group_message_id)
         group_member = group_message.user_group_copy.member
         validate_group_message_sender(group_member, group_message)
         last_message_id = group_message.user_group_copy.last_message.message.id
@@ -185,21 +190,23 @@ class UnsendGroupMessage(graphene.Mutation):
                 group_member_copy.save()
                 
         group_message.message.delete()
-        return UnsendGroupMessage(group_message_id=group_message_id)
+        return UnsendGroupMessage(success=True)
     
 class RemoveGroupMember(graphene.Mutation):
     class Arguments:
-        user_group_id = graphene.Int()
-        member_id = graphene.Int()
+        group_copy_id = graphene.ID()
+        member_id = graphene.ID()
         
-    group_member_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
-    def mutate(self, info, user_group_id, member_id):
-        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+    def mutate(self, info, group_copy_id, member_id):
+        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group = group_copy.member.user_group
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
-        group_member = get_object_or_404(GroupMember, user_group_id=user_group_id, member_id=member_id)
+        group_member: GroupMember = Node.get_node_from_global_id(info, member_id)
+        validate_group_member(user_group, group_member)
         group_member.delete()
         user_group.members_count -= 1
         user_group.save()
@@ -207,42 +214,44 @@ class RemoveGroupMember(graphene.Mutation):
 
 class LeaveGroup(graphene.Mutation):
     class Arguments:
-        user_group_id = graphene.Int()
+        group_copy_id = graphene.ID()
         
-    group_member_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
-    def mutate(self, info, user_group_id):
-        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+    def mutate(self, info, group_copy_id):
+        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group = group_copy.member.user_group
         group_member = user_group.members.get(member=info.context.user)
         group_member.delete()
         user_group.members_count -= 1
         user_group.save()
-        return LeaveGroup(group_member=group_member)
+        return LeaveGroup(success=True)
 
 class RemoveGroup(graphene.Mutation):
     class Arguments:
-        user_group_id = graphene.Int()
+        group_copy_id = graphene.ID()
         
-    user_group_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
-    def mutate(self, info, user_group_id):
-        user_group = get_object_or_404(UserGroup, pk=user_group_id)
+    def mutate(self, info, group_copy_id):
+        user_group_copy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group = user_group_copy.member.user_group
         validate_group_creator(user_group, info.context.user)
         user_group.delete()
-        return RemoveGroup(user_group_id=user_group_id)
+        return RemoveGroup(success=True)
 
 class SetArchiveGroup(graphene.Mutation):
     class Arguments:
-        user_group_copy_id = graphene.Int()
+        group_copy_id = graphene.ID()
         is_archived = graphene.Boolean()
         
     user_group_copy = graphene.Field(UserGroupMemberCopyType)
     
     @login_required
-    def mutate(self, info, user_group_copy_id, is_archived):
-        user_group_copy = get_object_or_404(UserGroupMemberCopy, pk=user_group_copy_id)
+    def mutate(self, info, group_copy_id, is_archived):
+        user_group_copy = Node.get_node_from_global_id(info, group_copy_id)
         validate_group_copy_member(user_group_copy, info.context.user)
         user_group_copy.is_archived = is_archived
         user_group_copy.save()

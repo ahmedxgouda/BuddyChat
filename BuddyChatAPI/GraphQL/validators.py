@@ -117,3 +117,8 @@ def validate_group_copy_member(group_member_copy, member):
     if not group_member_copy.member.member.id == member.id:
         raise ValidationError('You are not allowed to modify or delete this group')
     return True
+
+def validate_group_member_copy(user_group, member):
+    if not user_group.members.filter(pk=member.pk).exists():
+        raise ValidationError('User is not a member of this group')
+    return True
