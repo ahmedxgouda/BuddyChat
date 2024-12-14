@@ -1,17 +1,19 @@
 from graphene_django import DjangoObjectType
 from ..models import *
 import graphene
+from graphene_django.filter import DjangoFilterConnectionField
 from graphql_jwt.decorators import login_required
 from django.core.exceptions import PermissionDenied
 class CustomUserType(DjangoObjectType):
     class Meta:
         model = CustomUser
         exclude = ('password', 'other_user_chats', 'is_superuser', 'is_staff', 'groups')
+        interfaces = (graphene.relay.Node, )
         
-    notifications = graphene.List('BuddyChatAPI.GraphQL.types.NotificationType')
+    notifications = DjangoFilterConnectionField('BuddyChatAPI.GraphQL.types.NotificationType', fields=['is_read'])
     email = graphene.String()
     phone_numbers = graphene.List('BuddyChatAPI.GraphQL.types.PhoneNumberType')
-    chats = graphene.List('BuddyChatAPI.GraphQL.types.ChatType')
+    chats = DjangoFilterConnectionField('BuddyChatAPI.GraphQL.types.ChatType', fields=['archived'])
     
     @login_required
     def resolve_notifications(self, info):
@@ -57,26 +59,29 @@ class ChatType(DjangoObjectType):
     class Meta:
         model = Chat
         fields = "__all__"
+        interfaces = (graphene.relay.Node, )
         
 class ChatMessageType(DjangoObjectType):
     class Meta:
         model = ChatMessage
         fields = "__all__"
-        
+        interfaces = (graphene.relay.Node, )
+
 class UserGroupType(DjangoObjectType):
     class Meta:
         model = UserGroup
         fields = "__all__"
-        
+        interfaces = (graphene.relay.Node, )
 class GroupMessageType(DjangoObjectType):
     class Meta:
         model = GroupMessage
         fields = "__all__"
-        
+        interfaces = (graphene.relay.Node, )
 class GroupMemberType(DjangoObjectType):
     class Meta:
         model = GroupMember
         fields = "__all__"
+        interfaces = (graphene.relay.Node, )
         
 class AttachmentType(DjangoObjectType):
     class Meta:
@@ -87,8 +92,10 @@ class NotificationType(DjangoObjectType):
     class Meta:
         model = Notification
         fields = "__all__"
+        interfaces = (graphene.relay.Node, )
 
 class UserGroupMemberCopyType(DjangoObjectType):
     class Meta:
         model = UserGroupMemberCopy
         fields = "__all__"
+        interfaces = (graphene.relay.Node, )
