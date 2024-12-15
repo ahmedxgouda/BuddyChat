@@ -1,6 +1,6 @@
 from graphene_django.utils.testing import GraphQLTestCase
 from ..models import Chat, CustomUser, ChatMessage, Message, Notification
-
+from graphene.relay import Node
 class ChatTestCase(GraphQLTestCase):
     def setUp(self):
         # Prepare the users
@@ -13,12 +13,19 @@ class ChatTestCase(GraphQLTestCase):
         self.user3.save()
         self.user4.save()
         # Create chats
-        self.chat1 = Chat.objects.create(user1=self.user1, user2=self.user2)
-        self.chat2 = Chat.objects.create(user1=self.user1, user2=self.user3)
-        self.chat3 = Chat.objects.create(user1=self.user2, user2=self.user4)
+        self.chat1 = Chat.objects.create(user=self.user1, other_user=self.user2)
+        self.chat2 = Chat.objects.create(user=self.user1, other_user=self.user3)
+        self.chat3 = Chat.objects.create(user=self.user2, other_user=self.user4)
+        self.chat4 = Chat.objects.create(user=self.user2, other_user=self.user1)
+        self.chat5 = Chat.objects.create(user=self.user3, other_user=self.user1)
+        self.chat6 = Chat.objects.create(user=self.user4, other_user=self.user2)
+        
         self.chat1.save()
         self.chat2.save()
         self.chat3.save()
+        self.chat4.save()
+        self.chat5.save()
+        self.chat6.save()
         # Create messages and chat messages
         self.message1 = Message.objects.create(sender=self.user1, content='Hello')
         self.message2 = Message.objects.create(sender=self.user1, content='Hello')
@@ -30,24 +37,40 @@ class ChatTestCase(GraphQLTestCase):
         self.message4.save()
 
         self.chat_message1 = ChatMessage.objects.create(chat=self.chat1, message=self.message1)
+        self.chat_message1_other = ChatMessage.objects.create(chat=self.chat4, message=self.message1)
         self.chat_message2 = ChatMessage.objects.create(chat=self.chat2, message=self.message2)
+        self.chat_message2_other = ChatMessage.objects.create(chat=self.chat5, message=self.message2)
         self.chat_message3 = ChatMessage.objects.create(chat=self.chat3, message=self.message3)
+        self.chat_message3_other = ChatMessage.objects.create(chat=self.chat6, message=self.message3)
         self.chat_message4 = ChatMessage.objects.create(chat=self.chat3, message=self.message4)
+        self.chat_message4_other = ChatMessage.objects.create(chat=self.chat6, message=self.message4)
+        
         self.chat_message1.save()
         self.chat_message2.save()
         self.chat_message3.save()
         self.chat_message4.save()
+        self.chat_message1_other.save()
+        self.chat_message2_other.save()
+        self.chat_message3_other.save()
+        self.chat_message4_other.save()
         
         self.chat1.last_message = self.chat_message1
         self.chat2.last_message = self.chat_message2
         self.chat3.last_message = self.chat_message4
+        self.chat4.last_message = self.chat_message1_other
+        self.chat5.last_message = self.chat_message2_other
+        self.chat6.last_message = self.chat_message4_other
+
         self.chat1.save()
         self.chat2.save()
         self.chat3.save()
+        self.chat4.save()
+        self.chat5.save()
+        self.chat6.save()
         # Token for authentication
         token_query = '''
-            mutation TokenAuth($username: String!, $password: String!) {
-                tokenAuth(username: $username, password: $password) {
+            mutation Login($username: String!, $password: String!) {
+                login(username: $username, password: $password) {
                     token
                 }  
             }              
@@ -63,19 +86,19 @@ class ChatTestCase(GraphQLTestCase):
             variables={'username': 'test1', 'password': '113456789Test'}
         )
         
-        self.user1_token = user1_token_response.json()['data']['tokenAuth']['token']
-        self.user2_token = user2_token_response.json()['data']['tokenAuth']['token']
+        self.user1_token = user1_token_response.json()['data']['login']['token']
+        self.user2_token = user2_token_response.json()['data']['login']['token']
         # Repeated mutation for testing
         self.create_chat_mutation = '''
-            mutation CreateChat($user1Id: Int!, $user2Id: Int!) {
-                createChat(user1Id: $user1Id, user2Id: $user2Id) {
+            mutation CreateChat($otherUserId: ID!) {
+                createChat(otherUserId: $otherUserId) {
                     chat {
                         id
-                        user1 {
+                        user {
                             id
                             username
                         }
-                        user2 {
+                        otherUser {
                             id
                             username
                         }
@@ -84,7 +107,7 @@ class ChatTestCase(GraphQLTestCase):
             }
         '''
         self.create_chat_message_mutation = '''
-            mutation CreateChatMessage($chatId: Int!, $content: String!) {
+            mutation CreateChatMessage($chatId: ID!, $content: String!) {
                 createChatMessage(chatId: $chatId, content: $content) {
                     chatMessage {
                         id
@@ -103,7 +126,8 @@ class ChatTestCase(GraphQLTestCase):
                 }
             }
         '''
-        
+        self.chat_messages_count = ChatMessage.objects.count()
+        self.chat_count = Chat.objects.count()
         
     def test_query_chats(self):
         response = self.query(
@@ -113,11 +137,11 @@ class ChatTestCase(GraphQLTestCase):
                     edges {
                         node {
                             id
-                            user1 {
+                            user {
                                 id
                                 username
                             }
-                            user2 {
+                            otherUser {
                                 id
                                 username
                             }
@@ -131,53 +155,86 @@ class ChatTestCase(GraphQLTestCase):
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(len(content['data']['chats']['edges']), 2)
-        self.assertEqual(content['data']['chats']['edges'][0]['node']['user1']['username'], 'test')
+        self.assertEqual(content['data']['chats']['edges'][0]['node']['user']['username'], 'test')
         
     def test_query_chat(self):
+        chat_id = Node.to_global_id('ChatType', self.chat1.id)
         response = self.query(
             '''
-            query chat($id: Int!) {
+            query chat($id: ID!) {
                 chat(id: $id) {
                     id
-                    user1 {
+                    user {
                         id
                         username
                     }
-                    user2 {
+                    otherUser {
                         id
                         username
                     }
                 }
             }
             ''',
-            variables={'id': self.chat1.id},
+            variables={'id': chat_id},
             headers={'Authorization': f'JWT {self.user1_token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['chat']['user1']['username'], 'test')
+        self.assertEqual(content['data']['chat']['user']['username'], 'test')
         
     def test_create_chat(self):
+        user_id = Node.to_global_id('CustomUserType', self.user3.id)
         response = self.query(
             self.create_chat_mutation,
-            variables={'user1Id': self.user1.id, 'user2Id': self.user1.id},
+            variables={'otherUserId': user_id},
+            headers={'Authorization': f'JWT {self.user2_token}'}
+        )
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.chat_count += 2
+        self.assertEqual(content['data']['createChat']['chat']['user']['username'], 'test1')
+        self.assertEqual(content['data']['createChat']['chat']['otherUser']['username'], 'test2')
+        
+    def test_create_self_chat(self):
+        response = self.query(
+            '''
+            mutation {
+                createSelfChat {
+                    chat {
+                        id
+                        user {
+                            id
+                            username
+                        }
+                        otherUser {
+                            id
+                            username
+                        }
+                    }
+                }
+            }
+            ''',
             headers={'Authorization': f'JWT {self.user1_token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['createChat']['chat']['user1']['username'], 'test')
-        self.assertEqual(content['data']['createChat']['chat']['user2']['username'], 'test')
-        
+        self.chat_count += 1
+        self.assertEqual(content['data']['createSelfChat']['chat']['user']['username'], 'test')
+        self.assertEqual(content['data']['createSelfChat']['chat']['otherUser']['username'], 'test')
+    
     def test_create_chat_message(self):
+        chat_id = Node.to_global_id('ChatType', self.chat1.id)
         response = self.query(
             self.create_chat_message_mutation,
-            variables={'chatId': self.chat1.id, 'content': 'Hello'},
+            variables={'chatId': chat_id, 'content': 'Hello'},
             headers={'Authorization': f'JWT {self.user1_token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
+        self.chat_messages_count += 2
         self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['content'], 'Hello')
         self.assertEqual(content['data']['createChatMessage']['chatMessage']['message']['sender']['username'], 'test')
+        self.assertEqual(len(ChatMessage.objects.all()), self.chat_messages_count)
         
         # Check if notification was created
         self.assertEqual(Notification.objects.count(), 1)
@@ -186,32 +243,35 @@ class ChatTestCase(GraphQLTestCase):
         self.assertEqual(notification.message.id, int(content['data']['createChatMessage']['chatMessage']['message']['id']))
         
     def test_create_chat_message_invalid_chat(self):
+        chat_id = Node.to_global_id('ChatType', self.chat3.id)
         response = self.query(
             self.create_chat_message_mutation,
-            variables={'chatId': self.chat3.id, 'content': 'Hello'},
+            variables={'chatId': chat_id, 'content': 'Hello'},
             headers={'Authorization': f'JWT {self.user1_token}'}
         )
         content = response.json()
         self.assertIn("errors", content)
-        self.assertEqual(content['errors'][0]['message'], 'A user is not a member of this chat')
+        self.assertEqual(content['errors'][0]['message'], 'The user is not a member of this chat')
 
     def test_delete_chat(self):
-        chat1_id = self.chat1.id
+        chat1_id = Node.to_global_id('ChatType', self.chat1.id)
+        messages_count = self.chat1.chat_messages.count()
         response = self.query(
             '''
-            mutation DeleteChat($chatId: Int!) {
+            mutation DeleteChat($chatId: ID!) {
                 deleteChat(chatId: $chatId) {
-                    chatId
+                    success
                 }
             }
             ''',
-            variables={'chatId': self.chat1.id},
+            variables={'chatId': chat1_id},
             headers={'Authorization': f'JWT {self.user1_token}'}
         )
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['deleteChat']['chatId'], chat1_id)
-        self.assertEqual(Chat.objects.count(), 2)
+        self.assertEqual(content['data']['deleteChat']['success'], True)
+        self.assertEqual(Chat.objects.count(), self.chat_count)
+        self.assertEqual(ChatMessage.objects.count(), self.chat_messages_count - messages_count)
         
     def test_delete_chat_message(self):
         chat_message_id = self.chat_message4.id

@@ -83,6 +83,11 @@ def validate_chat_user(chat, user):
         raise PermissionDenied('You are not allowed to modify or delete this chat')
     return True
 
+def validate_chat_member(chat, member_id):
+    if chat.user.id != member_id and chat.other_user.id != member_id:
+        raise PermissionDenied('The user is not a member of this chat')
+    return True
+
 def validate_group_title(title):
     if len(title) < 2:
         raise ValidationError('Group title must be at least 2 characters long')

@@ -1,17 +1,17 @@
 import graphene
-from django.shortcuts import get_object_or_404
 from graphql_jwt.decorators import login_required
-from ..validators import validate_chat_user, validate_update_chat_message, validate_delete_chat_message, validate_unsend_chat_message
+from ..validators import validate_chat_user, validate_update_chat_message, validate_delete_chat_message, validate_unsend_chat_message, validate_chat_member
 from ..helpers import create_message
-from ...models import Chat, ChatMessage, Notification, CustomUser
+from ...models import Chat, ChatMessage, Notification
 from ..types import ChatType, ChatMessageType
 import bleach
 from django.utils import timezone
+from graphene.relay.node import Node
 
 class CreateChat(graphene.Mutation):
     
     class Arguments:
-        other_user_id = graphene.Int()
+        other_user_id = graphene.ID()
 
     chat = graphene.Field(ChatType)
     other_chat = graphene.Field(ChatType)
@@ -19,63 +19,81 @@ class CreateChat(graphene.Mutation):
     @login_required
     def mutate(self, info, other_user_id):
         user = info.context.user
-        other_user = get_object_or_404(CustomUser, pk=other_user_id)
+        other_user = Node.get_node_from_global_id(info, other_user_id)
         chat = Chat.objects.create(user=user, other_user=other_user)
         chat.save()
         other_user_chat = Chat.objects.create(user=other_user, other_user=user)
         other_user_chat.save()
         return CreateChat(chat=chat, other_chat=other_user_chat)
+    
+class CreateSelfChat(graphene.Mutation):
+        
+    chat = graphene.Field(ChatType)
+    
+    @login_required
+    def mutate(self, info):
+        user = info.context.user
+        chat = Chat.objects.create(user=user, other_user=user)
+        chat.save()
+        return CreateSelfChat(chat=chat)
 
 class CreateChatMessage(graphene.Mutation):
     class Arguments:
-        chat_id = graphene.Int()
+        chat_id = graphene.ID()
         content = graphene.String()
         
     chat_message = graphene.Field(ChatMessageType)
     
     @login_required
     def mutate(self, info, chat_id, content):
-        chat = get_object_or_404(Chat, pk=chat_id)
+        chat: Chat = Node.get_node_from_global_id(info, chat_id)
         sender_id = info.context.user.id
-        receiver = chat.other_user
-        receiver_chat = Chat.objects.get(user=receiver, other_user=info.context.user)
+        validate_chat_member(chat, sender_id)
         message = create_message(sender_id, content)
         chat_message = ChatMessage.objects.create(chat=chat, message=message)
-        receiver_chat_message = ChatMessage.objects.create(chat=receiver_chat, message=message)
         chat_message.save()
-        receiver_chat_message.save()
         chat.last_message = chat_message
-        receiver_chat.last_message = receiver_chat_message
         chat.save()
-        receiver_chat.save()
+        
+        receiver = chat.other_user
         notification = Notification.objects.create(receiver=receiver, message=message)
         notification.save()
+        
+        # If the chat is a self chat, return the chat message
+        if receiver.id == sender_id:
+            return CreateChatMessage(chat_message=chat_message)
+        
+        receiver_chat = Chat.objects.get(user=receiver, other_user=info.context.user)
+        receiver_chat_message = ChatMessage.objects.create(chat=receiver_chat, message=message)
+        receiver_chat_message.save()
+        receiver_chat.last_message = receiver_chat_message
+        receiver_chat.save()
         return CreateChatMessage(chat_message=chat_message)
     
 class DeleteChat(graphene.Mutation):
     class Arguments:
-        chat_id = graphene.Int()
+        chat_id = graphene.ID()
         
-    chat_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
     def mutate(self, info, chat_id):
-        chat = get_object_or_404(Chat, pk=chat_id)
+        chat: Chat = Node.get_node_from_global_id(info, chat_id)
         validate_chat_user(chat, info.context.user)
         for chat_message in chat.chat_messages.all():
             chat_message.delete()
-        return DeleteChat(chat_id=chat_id)
+        return DeleteChat(success=True)
     
 class UpdateChatMessage(graphene.Mutation):
     class Arguments:
-        chat_message_id = graphene.Int()
+        chat_message_id = graphene.ID()
         content = graphene.String()
         
     chat_message = graphene.Field(ChatMessageType)
     
     @login_required
     def mutate(self, info, chat_message_id, content):
-        chat_message = get_object_or_404(ChatMessage, pk=chat_message_id)
+        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
         validate_update_chat_message(chat_message, info.context.user.id)
         chat_message.message.content = bleach.clean(content)
         chat_message.message.save()
@@ -84,26 +102,26 @@ class UpdateChatMessage(graphene.Mutation):
 class SetChatMessageAsRead(graphene.Mutation):
     
     class Arguments:
-        chat_message_id = graphene.Int()
+        chat_message_id = graphene.ID()
         
     chat_message = graphene.Field(ChatMessageType)
     
     @login_required
     def mutate(self, info, chat_message_id):
-        chat_message = get_object_or_404(ChatMessage, pk=chat_message_id)
+        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
         chat_message.message.read_at = timezone.now()
         chat_message.message.save()
         return SetChatMessageAsRead(chat_message=chat_message)
 
 class UnsendChatMessage(graphene.Mutation):
     class Arguments:
-        chat_message_id = graphene.Int()
+        chat_message_id = graphene.ID()
         
-    chat_message_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
     def mutate(self, info, chat_message_id):
-        chat_message = get_object_or_404(ChatMessage, pk=chat_message_id)
+        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
         validate_unsend_chat_message(chat_message, info.context.user.id)
         chat = chat_message.chat
         other_user_chat = Chat.objects.get(user=chat.other_user, other_user=info.context.user)
@@ -121,23 +139,27 @@ class UnsendChatMessage(graphene.Mutation):
             chat.last_message = last_message
             chat.save()
             
+        # If the chat is a self chat then no need to update the last message of the other user's chat
+        if chat.user.id == chat.other_user.id:
+            return UnsendChatMessage(success=True)
+        
         # If the message being deleted is the last message in the other user's chat, update the last_message field of the other user's chat
         if other_user_chat_last_message_id == other_user_chat_message_id:
             last_message = other_user_chat.chat_messages.order_by('-message__date').first()
             other_user_chat.last_message = last_message
             other_user_chat.save()
         
-        return UnsendChatMessage(chat_message_id=chat_message_id)
+        return UnsendChatMessage(success=True)
 
 class DeleteChatMessage(graphene.Mutation):
     class Arguments:
-        chat_message_id = graphene.Int()
+        chat_message_id = graphene.ID()
         
-    chat_message_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
     def mutate(self, info, chat_message_id):
-        chat_message = get_object_or_404(ChatMessage, pk=chat_message_id)
+        chat_message = Node.get_node_from_global_id(info, chat_message_id)
         validate_delete_chat_message(chat_message, info.context.user.id)
         chat = chat_message.chat
         last_message_id = chat.last_message.id
@@ -150,18 +172,18 @@ class DeleteChatMessage(graphene.Mutation):
             chat.last_message = last_message
             chat.save()
         
-        return DeleteChatMessage(chat_message_id=chat_message_id)
+        return DeleteChatMessage(success=True)
 
 class SetChatArchived(graphene.Mutation):
     class Arguments:
-        chat_id = graphene.Int()
+        chat_id = graphene.ID()
         archived = graphene.Boolean()
         
     chat = graphene.Field(ChatType)
     
     @login_required
     def mutate(self, info, chat_id, archived):
-        chat = get_object_or_404(Chat, pk=chat_id)
+        chat = Node.get_node_from_global_id(info, chat_id)
         validate_chat_user(chat, info.context.user)
         chat.archived = archived
         chat.save()
@@ -176,3 +198,4 @@ class ChatMutations(graphene.ObjectType):
     delete_chat_message = DeleteChatMessage.Field()
     set_chat_message_as_read = SetChatMessageAsRead.Field()
     set_chat_archived = SetChatArchived.Field()
+    create_self_chat = CreateSelfChat.Field()
