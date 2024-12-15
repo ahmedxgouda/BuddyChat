@@ -71,7 +71,7 @@ class CreateGroupMember(graphene.Mutation):
         user_group = group_copy.member.user_group
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
-        group_member = create_group_member(user_group, member_id)
+        group_member = create_group_member(user_group, member_id, info)
         return CreateGroupMember(group_member=group_member)
 
 class ChangeAdmin(graphene.Mutation):
@@ -125,13 +125,13 @@ class UpdateGroup(graphene.Mutation):
 
 class DeleteGroup(graphene.Mutation):
     class Arguments:
-        user_group_copy_id = graphene.ID()
+        group_copy_id = graphene.ID()
         
     success = graphene.Boolean()
     
     @login_required
-    def mutate(self, info, user_group_copy_id):
-        user_group_copy = Node.get_node_from_global_id(info, user_group_copy_id)
+    def mutate(self, info, group_copy_id):
+        user_group_copy = Node.get_node_from_global_id(info, group_copy_id)
         validate_group_copy_member(user_group_copy, info.context.user)
         for group_message in user_group_copy.group_messages.all():
             group_message.delete()
@@ -148,7 +148,7 @@ class UpdateGroupMessage(graphene.Mutation):
     def mutate(self, info, group_message_id, content):
         group_message: GroupMessage = Node.get_node_from_global_id(info, group_message_id)
         group_member = group_message.user_group_copy.member
-        validate_group_message_sender(group_member, group_message)
+        validate_group_message_sender(group_member, group_message.message.sender.id)
         content = bleach.clean(content)
         validate_message_content(content)
         group_message.message.content = content
@@ -181,7 +181,7 @@ class UnsendGroupMessage(graphene.Mutation):
     def mutate(self, info, group_message_id):
         group_message = Node.get_node_from_global_id(info, group_message_id)
         group_member = group_message.user_group_copy.member
-        validate_group_message_sender(group_member, group_message)
+        validate_group_message_sender(group_member, group_message.message.sender.id)
         last_message_id = group_message.user_group_copy.last_message.message.id
         user_group = group_message.user_group_copy.member.user_group
         
@@ -213,7 +213,7 @@ class RemoveGroupMember(graphene.Mutation):
         group_member.delete()
         user_group.members_count -= 1
         user_group.save()
-        return RemoveGroupMember(group_member=group_member)
+        return RemoveGroupMember(success=True)
 
 class LeaveGroup(graphene.Mutation):
     class Arguments:
@@ -250,7 +250,7 @@ class SetArchiveGroup(graphene.Mutation):
         group_copy_id = graphene.ID()
         is_archived = graphene.Boolean()
         
-    user_group_copy = graphene.Field(UserGroupMemberCopyType)
+    group_copy = graphene.Field(UserGroupMemberCopyType)
     
     @login_required
     def mutate(self, info, group_copy_id, is_archived):
@@ -258,7 +258,7 @@ class SetArchiveGroup(graphene.Mutation):
         validate_group_copy_member(user_group_copy, info.context.user)
         user_group_copy.is_archived = is_archived
         user_group_copy.save()
-        return SetArchiveGroup(user_group_copy=user_group_copy)
+        return SetArchiveGroup(group_copy=user_group_copy)
 
 class GroupMutations(graphene.ObjectType):
     create_group = CreateGroup.Field()

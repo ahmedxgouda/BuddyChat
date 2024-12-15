@@ -1,6 +1,6 @@
 from graphene_django.utils.testing import GraphQLTestCase
 from ..models import UserGroup, CustomUser, GroupMember, GroupMessage, Message, UserGroupMemberCopy
-from ..GraphQL.helpers import create_group_member, create_message
+from ..GraphQL.helpers import create_message
 from graphene.relay.node import Node
 
 class GroupTestCase(GraphQLTestCase):
@@ -56,9 +56,9 @@ class GroupTestCase(GraphQLTestCase):
         GroupMessage.objects.create(user_group_copy=self.group_member_copy4, message=self.message1)
         
         # Create group messages for message 2
-        self.group_message2 = GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message2)
+        self.group_message2 = GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message2)
         
-        GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message2)
+        GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message2)
         GroupMessage.objects.create(user_group_copy=self.group_member_copy3, message=self.message2)
         GroupMessage.objects.create(user_group_copy=self.group_member_copy4, message=self.message2)
         
@@ -72,10 +72,15 @@ class GroupTestCase(GraphQLTestCase):
         # Create group messages for message 4
         self.group_message4 = GroupMessage.objects.create(user_group_copy=self.group_member_copy4, message=self.message4)
         
-        GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message4)
-        GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message4)
-        GroupMessage.objects.create(user_group_copy=self.group_member_copy3, message=self.message4)
+        self.group_member_copy1.last_message =  GroupMessage.objects.create(user_group_copy=self.group_member_copy1, message=self.message4)
+        self.group_member_copy2.last_message = GroupMessage.objects.create(user_group_copy=self.group_member_copy2, message=self.message4)
+        self.group_member_copy3.last_message = GroupMessage.objects.create(user_group_copy=self.group_member_copy3, message=self.message4)
+        self.group_member_copy4.last_message = self.group_message4
         
+        self.group_member_copy1.save()
+        self.group_member_copy2.save()
+        self.group_member_copy3.save()
+        self.group_member_copy4.save()
         # Token for authentication
         token_query = '''
             mutation Login($username: String!, $password: String!) {
@@ -161,6 +166,21 @@ class GroupTestCase(GraphQLTestCase):
             }
         '''
         
+        # For the group to be deleted
+        self.group_to_be_deleted = UserGroup.objects.create(title='test2', created_by=self.admin_user)
+        self.group_to_be_deleted.save()
+        member_to_be_deleted = GroupMember.objects.create(user_group=self.group_to_be_deleted, member=self.admin_user, is_admin=True)
+        member_to_be_deleted.save()
+        self.copy_to_be_deleted = UserGroupMemberCopy.objects.create(member=member_to_be_deleted)
+        self.copy_to_be_deleted.save()
+        
+        self.group_to_be_deleted.members_count = 1
+        self.group_to_be_deleted.save()
+        
+        self.member_copies_count = 5
+        self.group_members_count = 5
+        self.group_messages_count = 16
+        
     def test_query_groups(self):
         response = self.query(
             '''
@@ -190,7 +210,7 @@ class GroupTestCase(GraphQLTestCase):
         )
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(len(content['data']['groups']['edges']), 1)
+        self.assertEqual(len(content['data']['groups']['edges']), 2)
         self.assertEqual(content['data']['groups']['edges'][0]['node']['member']['userGroup']['title'], 'test')
         
     def test_query_group(self):
@@ -238,10 +258,11 @@ class GroupTestCase(GraphQLTestCase):
             headers={'Authorization': f'JWT {self.user1_token}'}
         )
         
+        self.group_messages_count += 4
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['createGroupMessage']['message']['content'], 'Hello from user1')
-        self.assertEqual(len(GroupMessage.objects.all()), 20)
+        self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
         
         # Check if the notification was created
         user2_global_id = Node.to_global_id('CustomUserType', self.user2.id)
@@ -275,10 +296,12 @@ class GroupTestCase(GraphQLTestCase):
         self.assertEqual(len(user4NotificationsContent['data']['user']['notifications']["edges"]), 0)
         
     def test_create_group_member(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy4.id)
+        member_id = Node.to_global_id('CustomUserType', self.user4.id)
         response = self.query(
             '''
-            mutation CreateGroupMember($userGroupId: Int!, $memberId: Int!) {
-                createGroupMember(userGroupId: $userGroupId, memberId: $memberId) {
+            mutation CreateGroupMember($groupCopyId: ID!, $memberId: ID!) {
+                createGroupMember(groupCopyId: $groupCopyId, memberId: $memberId) {
                     groupMember {
                         id
                         userGroup {
@@ -291,19 +314,25 @@ class GroupTestCase(GraphQLTestCase):
                 }
             }
             ''',
-            variables={'userGroupId': self.group.id, 'memberId': self.user4.id},
+            variables={'groupCopyId': group_copy_id, 'memberId': member_id},
             headers={'Authorization': f'JWT {self.admin_token}'}
         )
 
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['createGroupMember']['groupMember']['member']['id'], str(self.user4.id))
+        self.assertEqual(content['data']['createGroupMember']['groupMember']['member']['id'], member_id)
+        self.member_copies_count += 1
+        self.group_members_count += 1
+        self.assertEqual(len(UserGroupMemberCopy.objects.all()), self.member_copies_count)
+        self.assertEqual(len(GroupMember.objects.all()), self.group_members_count)
         
     def test_assign_admin(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy4.id)
+        member_id = Node.to_global_id('GroupMemberType', self.group_member3.id)
         response = self.query(
             '''
-            mutation AssignAdmin($userGroupId: Int!, $memberId: Int!) {
-                assignAdmin(userGroupId: $userGroupId, memberId: $memberId) {
+            mutation ChangeAdmin($groupCopyId: ID!, $memberId: ID!, $isAdmin: Boolean!) {
+                changeAdmin(groupCopyId: $groupCopyId, memberId: $memberId, isAdmin: $isAdmin) {
                     groupMember {
                         id
                         userGroup {
@@ -317,10 +346,221 @@ class GroupTestCase(GraphQLTestCase):
                 }
             }
             ''',
-            variables={'userGroupId': self.group.id, 'memberId': self.user1.id},
+            variables={'groupCopyId': group_copy_id, 'memberId': member_id, 'isAdmin': True},
             headers={'Authorization': f'JWT {self.admin_token}'}
         )
 
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['assignAdmin']['groupMember']['isAdmin'], True)
+        self.assertEqual(content['data']['changeAdmin']['groupMember']['isAdmin'], True)
+
+    def test_remove_member(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy4.id)
+        member_id = Node.to_global_id('GroupMemberType', self.group_member3.id)
+        response = self.query(
+            '''
+            mutation RemoveGroupMember($groupCopyId: ID!, $memberId: ID!) {
+                removeGroupMember(groupCopyId: $groupCopyId, memberId: $memberId) {
+                    success
+                }
+            }
+            ''',
+            variables={'groupCopyId': group_copy_id, 'memberId': member_id},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+
+        self.member_copies_count -= 1
+        self.group_members_count -= 1
+        self.group_messages_count -= 4
+
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(len(UserGroupMemberCopy.objects.all()), self.member_copies_count)
+        self.assertEqual(content['data']['removeGroupMember']['success'], True)
+        self.assertEqual(len(GroupMember.objects.all()), self.group_members_count)
+        self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
+        
+    def test_delete_group(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy4.id)
+        response = self.query(
+            '''
+            mutation DeleteGroup($groupCopyId: ID!) {
+                deleteGroup(groupCopyId: $groupCopyId) {
+                    success
+                }
+            }
+            ''',
+            variables={'groupCopyId': group_copy_id},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+        
+        self.group_messages_count -= 4
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['deleteGroup']['success'], True)
+        self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
+        self.assertEqual(len(UserGroupMemberCopy.objects.all()), self.member_copies_count)
+        self.assertEqual(len(GroupMember.objects.all()), self.group_members_count)
+        
+    def test_leave_group(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy1.id)
+        response = self.query(
+            '''
+            mutation LeaveGroup($groupCopyId: ID!) {
+                leaveGroup(groupCopyId: $groupCopyId) {
+                    success
+                }
+            }
+            ''',
+            variables={'groupCopyId': group_copy_id},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
+        self.group_members_count -= 1
+        self.member_copies_count -= 1
+        self.group_messages_count -= 4
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['leaveGroup']['success'], True)
+        self.assertEqual(len(GroupMember.objects.all()), self.group_members_count)
+        self.assertEqual(len(UserGroupMemberCopy.objects.all()), self.member_copies_count)
+        self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
+        
+    def test_remove_group_permanently(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.copy_to_be_deleted.id)
+        response = self.query(
+            '''
+            mutation RemoveGroupPermanently($groupCopyId: ID!) {
+                removeGroupPermanently(groupCopyId: $groupCopyId) {
+                    success
+                }
+            }
+            ''',
+            variables={'groupCopyId': group_copy_id},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+        
+        self.member_copies_count -= 1
+        self.group_members_count -= 1
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['removeGroupPermanently']['success'], True)
+        self.assertEqual(len(GroupMember.objects.all()), self.group_members_count)
+        self.assertEqual(len(UserGroupMemberCopy.objects.all()), self.member_copies_count)
+        self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
+        
+    def test_delete_group_message(self):
+        group_message_id = Node.to_global_id('GroupMessageType', self.group_message4.id)
+        response = self.query(
+            '''
+            mutation DeleteGroupMessage($groupMessageId: ID!) {
+                deleteGroupMessage(groupMessageId: $groupMessageId) {
+                    success
+                }
+            }
+            ''',
+            variables={'groupMessageId': group_message_id},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+        
+        self.group_messages_count -= 1
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['deleteGroupMessage']['success'], True)
+        self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
+        
+    def test_unsend_group_message(self):
+        group_message_id = Node.to_global_id('GroupMessageType', self.group_message1.id)
+        response = self.query(
+            '''
+            mutation UnsendGroupMessage($groupMessageId: ID!) {
+                unsendGroupMessage(groupMessageId: $groupMessageId) {
+                    success
+                }
+            }
+            ''',
+            variables={'groupMessageId': group_message_id},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
+        self.group_messages_count -= 4
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['unsendGroupMessage']['success'], True)
+        self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
+
+    def test_update_group(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy4.id)
+        response = self.query(
+            '''
+            mutation UpdateGroup($groupCopyId: ID!, $description: String) {
+                updateGroup(groupCopyId: $groupCopyId, description: $description) {
+                    groupCopy {
+                        id
+                        member {
+                            userGroup {
+                                id
+                                description
+                            }
+                        }
+                    }
+                }
+            }
+            ''',
+            variables={'groupCopyId': group_copy_id, 'description': 'A description for this group'},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['updateGroup']['groupCopy']['member']['userGroup']['description'], 'A description for this group')
+        
+    def test_update_group_message(self):
+        group_message_id = Node.to_global_id('GroupMessageType', self.group_message2.id)
+        response = self.query(
+            '''
+            mutation UpdateGroupMessage($groupMessageId: ID!, $content: String) {
+                updateGroupMessage(groupMessageId: $groupMessageId, content: $content) {
+                    groupMessage {
+                        id
+                        message {
+                            id
+                            content
+                        }
+                    }
+                }
+            }
+            ''',
+            variables={'groupMessageId': group_message_id, 'content': 'Updated message'},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['updateGroupMessage']['groupMessage']['message']['content'], 'Updated message')
+        
+    def test_set_archive_group(self):
+        group_copy_id = Node.to_global_id('UserGroupMemberCopyType', self.group_member_copy4.id)
+        response = self.query(
+            '''
+            mutation SetArchiveGroup($groupCopyId: ID!, $isArchived: Boolean!) {
+                setArchiveGroup(groupCopyId: $groupCopyId, isArchived: $isArchived) {
+                    groupCopy {
+                        id
+                        isArchived
+                    }
+                }
+            }
+            ''',
+            variables={'groupCopyId': group_copy_id, 'isArchived': True},
+            headers={'Authorization': f'JWT {self.admin_token}'}
+        )
+        
+        content = response.json()
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['setArchiveGroup']['groupCopy']['isArchived'], True)
