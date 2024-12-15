@@ -1,6 +1,6 @@
 from ..models import CustomUser
 from graphene_django.utils.testing import GraphQLTestCase
-
+from graphene.relay import Node
 # Create your tests here.
 
 class UserTestCase(GraphQLTestCase):
@@ -12,17 +12,17 @@ class UserTestCase(GraphQLTestCase):
         self.user1.phone_numbers.create(number='1234587890', country_code='20')
         # Get token for updating and deleting
         query = '''
-            mutation TokenAuth($username: String!, $password: String!) {
+            mutation Login($username: String!, $password: String!) {
                 
-                tokenAuth(username: $username, password: $password) {
+                login(username: $username, password: $password) {
                     token
                 }
             }
             '''
         response_token = self.query(query=query, variables={'username': 'test', 'password': '123456789Test'})
-        self.user1_token = response_token.json()['data']['tokenAuth']['token']
+        self.user1_token = response_token.json()['data']['login']['token']
         response_token = self.query(query=query, variables={'username': 'test1', 'password': '113456789Test'})
-        self.user2_token = response_token.json()['data']['tokenAuth']['token']
+        self.user2_token = response_token.json()['data']['login']['token']
         # Repeated mutation for testing
         self.create_user_mutation = '''
             mutation CreateUser($username: String!, $email: String!, $password: String!, $firstName: String!, $lastName: String!, $phoneNumber: PhoneNumberInputType!) {
@@ -61,7 +61,7 @@ class UserTestCase(GraphQLTestCase):
     
     def test_query_user(self):
         query = '''
-            query user($id: Int!) {
+            query user($id: ID!) {
                 user(id: $id) {
                     id
                     username
@@ -70,7 +70,7 @@ class UserTestCase(GraphQLTestCase):
                 }
             }
         '''
-        response = self.query(query=query, variables={'id': self.user1.id})
+        response = self.query(query=query, variables={'id': Node.to_global_id('CustomUserType', self.user1.id)})
         content = response.json()
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['user']['username'], 'test')
@@ -222,7 +222,7 @@ class UserTestCase(GraphQLTestCase):
         
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['changePassword']['user']['id'], str(self.user1.id))
+        self.assertEqual(content['data']['changePassword']['user']['id'], Node.to_global_id('CustomUserType', self.user1.id))
         
     def test_delete_user(self):
         query = '''
