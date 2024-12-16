@@ -14,7 +14,7 @@ django-filter = "*"
 bleach = "*"
 django-graphql-jwt = "*"
 django-allauth = "*"
-djangorestframework-simplejwt = "*"
+django-channels-graphql-ws = "*"
 
 [dev-packages]
 
