@@ -86,8 +86,20 @@ class ChatTestCase(GraphQLTestCase):
             variables={'username': 'test1', 'password': '113456789Test'}
         )
         
+        user_3_token_response = self.query(
+            token_query,
+            variables={'username': 'test2', 'password': '113456789Test'}
+        )
+        
+        user_4_token_response = self.query(
+            token_query,
+            variables={'username': 'test3', 'password': '113456789Test'}
+        )
+        
         self.user1_token = user1_token_response.json()['data']['login']['token']
         self.user2_token = user2_token_response.json()['data']['login']['token']
+        self.user3_token = user_3_token_response.json()['data']['login']['token']
+        self.user4_token = user_4_token_response.json()['data']['login']['token']
         # Repeated mutation for testing
         self.create_chat_mutation = '''
             mutation CreateChat($otherUserId: ID!) {
@@ -128,6 +140,7 @@ class ChatTestCase(GraphQLTestCase):
         '''
         self.chat_messages_count = ChatMessage.objects.count()
         self.chat_count = Chat.objects.count()
+        self.messages_count = Message.objects.count()
         
     def test_query_chats(self):
         response = self.query(
@@ -274,44 +287,31 @@ class ChatTestCase(GraphQLTestCase):
         self.assertEqual(ChatMessage.objects.count(), self.chat_messages_count - messages_count)
         
     def test_delete_chat_message(self):
-        chat_message_id = self.chat_message4.id
+        chat_message_id = Node.to_global_id('ChatMessageType', self.chat_message4.id)
         query = '''
-            mutation DeleteChatMessage($chatMessageId: Int!) {
+            mutation DeleteChatMessage($chatMessageId: ID!) {
                 deleteChatMessage(chatMessageId: $chatMessageId) {
-                    chatMessageId
+                    success
                 }
             }
         '''
         response = self.query(
             query=query,
-            variables={'chatMessageId': self.chat_message4.id},
+            variables={'chatMessageId': chat_message_id},
             headers={'Authorization': f'JWT {self.user2_token}'}
         )
         
         content = response.json()
         
         self.assertResponseNoErrors(response)
-        self.assertEqual(ChatMessage.objects.count(), 3)
-        self.assertEqual(Message.objects.count(), 3)
-        self.assertEqual(content['data']['deleteChatMessage']['chatMessageId'], chat_message_id)
-        
-        response = self.query(
-            query=query,
-            variables={'chatMessageId': self.chat_message3.id},
-            headers={'Authorization': f'JWT {self.user2_token}'}
-        )
-        
-        content = response.json()
-        
-        chat_message_id = self.chat_message3.id
-        self.assertResponseNoErrors(response)
-        self.assertEqual(ChatMessage.objects.count(), 2)
-        self.assertEqual(Message.objects.count(), 2)
-        self.assertEqual(content['data']['deleteChatMessage']['chatMessageId'], chat_message_id)
+        self.chat_messages_count -= 1
+        self.assertEqual(ChatMessage.objects.count(), self.chat_messages_count)
+        self.assertEqual(Message.objects.count(), self.messages_count)
+        self.assertEqual(content['data']['deleteChatMessage']['success'], True)
         
     def test_update_chat_message(self):
         query = '''
-            mutation UpdateChatMessage($chatMessageId: Int!, $content: String!) {
+            mutation UpdateChatMessage($chatMessageId: ID!, $content: String!) {
                 updateChatMessage(chatMessageId: $chatMessageId, content: $content) {
                     chatMessage {
                         id
@@ -322,9 +322,10 @@ class ChatTestCase(GraphQLTestCase):
                 }
             }
         '''
+        chat_message_id = Node.to_global_id('ChatMessageType', self.chat_message3.id)
         response = self.query(
             query=query,
-            variables={'chatMessageId': self.chat_message4.id, 'content': 'Hello World'},
+            variables={'chatMessageId': chat_message_id, 'content': 'Hello World'},
             headers={'Authorization': f'JWT {self.user2_token}'}
         )
         
@@ -332,5 +333,95 @@ class ChatTestCase(GraphQLTestCase):
         
         self.assertResponseNoErrors(response)
         self.assertEqual(content['data']['updateChatMessage']['chatMessage']['message']['content'], 'Hello World')
-
         
+    def test_unsend_chat_message_invalid_sender(self):
+        query = '''
+            mutation UnsendChatMessage($chatMessageId: ID!) {
+                unsendChatMessage(chatMessageId: $chatMessageId) {
+                    success
+                }
+            }
+        '''
+        chat_message_id = Node.to_global_id('ChatMessageType', self.chat_message4_other.id)
+        response = self.query(
+            query=query,
+            variables={'chatMessageId': chat_message_id},
+            headers={'Authorization': f'JWT {self.user4_token}'}
+        )
+        
+        content = response.json()
+        
+        self.assertIn('errors', content)
+        self.assertEqual(content['errors'][0]['message'], 'You are not allowed to unsend this message')
+        
+    def test_unsend_chat_message(self):
+        query = '''
+            mutation UnsendChatMessage($chatMessageId: ID!) {
+                unsendChatMessage(chatMessageId: $chatMessageId) {
+                    success
+                }
+            }
+        '''
+        chat_message_id = Node.to_global_id('ChatMessageType', self.chat_message2.id)
+        response = self.query(
+            query=query,
+            variables={'chatMessageId': chat_message_id},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
+        content = response.json()
+        
+        self.assertResponseNoErrors(response)
+        
+        self.chat_messages_count -= 2
+        self.messages_count -= 1
+        
+        self.assertEqual(content['data']['unsendChatMessage']['success'], True)
+        self.assertEqual(ChatMessage.objects.count(), self.chat_messages_count)
+        self.assertEqual(Message.objects.count(), self.messages_count)
+
+    def test_set_chat_message_as_read(self):
+        query = '''
+            mutation SetChatMessageAsRead($chatMessageId: ID!) {
+                setChatMessageAsRead(chatMessageId: $chatMessageId) {
+                    chatMessage {
+                        message {
+                            readAt
+                        }
+                    }
+                }
+            }
+        '''
+        chat_message_id = Node.to_global_id('ChatMessageType', self.chat_message2_other.id)
+        response = self.query(
+            query=query,
+            variables={'chatMessageId': chat_message_id},
+            headers={'Authorization': f'JWT {self.user3_token}'}
+        )
+        
+        content = response.json()
+        
+        self.assertResponseNoErrors(response)
+        self.assertIsNotNone(content['data']['setChatMessageAsRead']['chatMessage']['message']['readAt'])
+        
+    def test_set_chat_archived(self):
+        query = '''
+            mutation SetChatArchived($chatId: ID!, $archived: Boolean!) {
+                setChatArchived(chatId: $chatId, archived: $archived) {
+                    chat {
+                        archived
+                    }
+                }
+            }
+        '''
+        chat_id = Node.to_global_id('ChatType', self.chat2.id)
+        response = self.query(
+            query=query,
+            variables={'chatId': chat_id, 'archived': True},
+            headers={'Authorization': f'JWT {self.user1_token}'}
+        )
+        
+        content = response.json()
+        
+        self.assertResponseNoErrors(response)
+        self.assertEqual(content['data']['setChatArchived']['chat']['archived'], True)
