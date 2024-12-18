@@ -58,12 +58,19 @@ class Mutation(AuthMutation, GroupMutations, ChatMutations, graphene.ObjectType)
 class Subscription(graphene.ObjectType):
     chat_message = graphene.Field(ChatMessageType)
     
-    # @login_required
+    @login_required
     async def resolve_chat_message(root, info):
         channel_layer = get_channel_layer()
-        message = await channel_layer.receive(f"user_{info.context.user.username}")
-        print(message)
-        yield ChatMessage.objects.get(id=message['data']['payload']['id'])
+        user = info.context.user
+        group_name = f'user_{user.username}'
+        async with channel_layer.typing() as typing:
+            while True:
+                message = await channel_layer.receive(group_name)
+                if message:
+                    return message
+        return None
+        
+        
     
 schema = graphene.Schema(query=Query, mutation=Mutation, subscription=Subscription)
 

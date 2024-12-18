@@ -11,8 +11,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.security.websocket import AllowedHostsOriginValidator
-from channels.auth import AuthMiddlewareStack
 from BuddyChatAPI.GraphQL.subscriptions.consumers import MainConsumer
 from django.urls import re_path
 from BuddyChatAPI.GraphQL.subscriptions.middleware import JWTAuthMiddleware
@@ -23,11 +21,9 @@ asgi_app = get_asgi_application()
 
 application = ProtocolTypeRouter({
     "http": asgi_app,
-    "websocket": 
-            JWTAuthMiddleware(
-                URLRouter([
-                    re_path(r'graphql', MainConsumer.as_asgi()),
-                ])
-            
+    "websocket": JWTAuthMiddleware(
+        URLRouter([
+            re_path(r'graphql', MainConsumer.as_asgi()),
+        ])    
     ),
 })

@@ -3,6 +3,7 @@ from channels.db import database_sync_to_async
 from graphql_jwt.utils import jwt_decode
 from django.core.exceptions import PermissionDenied
 from channels.middleware import BaseMiddleware
+from ...models import CustomUser
 
 class JWTAuthMiddleware(BaseMiddleware):
     """Custom middleware to authenticate WebSocket connections using JWT."""
@@ -13,7 +14,6 @@ class JWTAuthMiddleware(BaseMiddleware):
     def __call__(self, scope, receive, send):
         # Get JWT token from WebSocket connection headers
         token = None
-        print(scope)
         for header in scope["headers"]:
             if header[0] == b"authorization":
                 token = header[1].decode("utf-8").split("JWT ")[-1]
@@ -26,7 +26,8 @@ class JWTAuthMiddleware(BaseMiddleware):
                 # Attach the user to the scope
                 scope['user'] = self.get_user_from_payload(payload)
             except Exception as e:
-                raise PermissionDenied("Invalid or expired token.")
+                # Return a permission denied error if the token is invalid
+                scope['user'] = None
         else:
             scope['user'] = None
 
@@ -36,9 +37,8 @@ class JWTAuthMiddleware(BaseMiddleware):
     def get_user_from_payload(self, payload):
         """Helper function to get the user from the payload."""
         
-        User = get_user_model()
         try:
-            print(payload)
-            return User.objects.get(username=payload["username"])
-        except User.DoesNotExist:
+            user = CustomUser.objects.get(username=payload['username'])
+        except CustomUser.DoesNotExist:
             return None
+        return user
