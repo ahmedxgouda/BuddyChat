@@ -36,6 +36,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -46,11 +48,7 @@ INSTALLED_APPS = [
     'BuddyChatAPI',
     'graphene_django',
     'django_filters',
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
     'graphql_jwt.refresh_token.apps.RefreshTokenConfig',
-    'channels',
 ]
 
 MIDDLEWARE = [
@@ -61,7 +59,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'BuddyChat.urls'
@@ -153,7 +150,6 @@ GRAPHENE = {
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
     'graphql_jwt.backends.JSONWebTokenBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
 )
 
 SITE_ID = 1
@@ -166,9 +162,6 @@ GRAPHQL_JWT = {
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-ACCOUNT_EMAIL_VERIFICATION = 'optional' # temporary for development
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 
 ASGI_APPLICATION = 'BuddyChat.asgi.application'
 

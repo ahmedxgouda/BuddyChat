@@ -1,14 +1,15 @@
 import graphene
 from graphene.relay.node import Node
 from graphene_django.filter import DjangoFilterConnectionField
-from .types import CustomUserType, ChatType, UserGroupType, NotificationType, UserGroupMemberCopyType
+from .types import CustomUserType, ChatType, NotificationType, UserGroupMemberCopyType, ChatMessageType
 from .mutations.notification_mutations import SetNotificationAsRead
 from .mutations.auth_mutations import AuthMutation
 from .mutations.group_mutations import GroupMutations
 from .mutations.chat_mutations import ChatMutations
 from graphql_jwt.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from ..models import CustomUser, GroupMember, Chat, UserGroupMemberCopy, Notification
+from ..models import CustomUser, GroupMember, Chat, UserGroupMemberCopy, ChatMessage
+from channels.layers import get_channel_layer
     
 class Query(graphene.ObjectType):
     users = DjangoFilterConnectionField(CustomUserType, fields=['username', 'first_name', 'last_name'], max_limit=20)
@@ -54,5 +55,15 @@ class Query(graphene.ObjectType):
 class Mutation(AuthMutation, GroupMutations, ChatMutations, graphene.ObjectType):
     set_notification_read = SetNotificationAsRead.Field()
     
-schema = graphene.Schema(query=Query, mutation=Mutation)
+class Subscription(graphene.ObjectType):
+    chat_message = graphene.Field(ChatMessageType)
+    
+    # @login_required
+    async def resolve_chat_message(root, info):
+        channel_layer = get_channel_layer()
+        message = await channel_layer.receive(f"user_{info.context.user.username}")
+        print(message)
+        yield ChatMessage.objects.get(id=message['data']['payload']['id'])
+    
+schema = graphene.Schema(query=Query, mutation=Mutation, subscription=Subscription)
 

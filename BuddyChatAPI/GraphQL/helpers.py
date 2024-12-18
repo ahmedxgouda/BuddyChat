@@ -14,6 +14,7 @@ def create_group_member(user_group, member_id, info, is_admin=False):
     user_group_member_copy.save()
     return group_member
 
+
 def create_message(sender_id, content):
     sender = get_object_or_404(CustomUser, pk=sender_id)
     content = bleach.clean(content)

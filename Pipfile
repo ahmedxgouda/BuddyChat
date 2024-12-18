@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 django = "*"
 graphene-django = "*"
-channels = "*"
 channels-redis = "*"
 pillow = "*"
 mysqlclient = "*"
@@ -14,6 +13,7 @@ django-filter = "*"
 bleach = "*"
 django-graphql-jwt = "*"
 django-allauth = "*"
+channels = {extras = ["daphne"], version = "*"}
 
 [dev-packages]
 

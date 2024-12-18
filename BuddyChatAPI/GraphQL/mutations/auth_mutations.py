@@ -38,7 +38,7 @@ class UpdateUser(graphene.Mutation):
     user = graphene.Field(CustomUserType)
     
     @login_required
-    def mutate(self, info, first_name, last_name, profile_picture, bio):
+    def mutate(self, info, first_name=None, last_name=None, profile_picture=None, bio=None):
         user = info.context.user
         cleaner = bleach.sanitizer.Cleaner()
         if first_name:
