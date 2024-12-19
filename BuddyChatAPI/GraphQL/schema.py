@@ -10,6 +10,7 @@ from graphql_jwt.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from ..models import CustomUser, GroupMember, Chat, UserGroupMemberCopy, ChatMessage
 from channels.layers import get_channel_layer
+from channels.db import database_sync_to_async
     
 class Query(graphene.ObjectType):
     users = DjangoFilterConnectionField(CustomUserType, fields=['username', 'first_name', 'last_name'], max_limit=20)
@@ -56,21 +57,12 @@ class Mutation(AuthMutation, GroupMutations, ChatMutations, graphene.ObjectType)
     set_notification_read = SetNotificationAsRead.Field()
     
 class Subscription(graphene.ObjectType):
+
     chat_message = graphene.Field(ChatMessageType)
     
-    @login_required
     async def resolve_chat_message(root, info):
-        channel_layer = get_channel_layer()
-        user = info.context.user
-        group_name = f'user_{user.username}'
-        async with channel_layer.typing() as typing:
-            while True:
-                message = await channel_layer.receive(group_name)
-                if message:
-                    return message
-        return None
-        
+        while True:
+            yield await database_sync_to_async(ChatMessage.objects.filter)(chat__user=info.context.user).first()
         
     
 schema = graphene.Schema(query=Query, mutation=Mutation, subscription=Subscription)
-

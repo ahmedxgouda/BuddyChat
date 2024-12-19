@@ -7,18 +7,19 @@ class MainConsumer(AsyncWebsocketConsumer):
         self.user = self.scope.get('user')
         if not self.user:
             await self.close()
-        self.user = await self.user
-        if not self.user.is_authenticated:
-            await self.close()
         else:
-            self.group_name = f'user_{self.user.username}'
-            await self.channel_layer.group_add(
-                self.group_name,
-                self.channel_name
-            )
-            protocols = self.scope.get('subprotocols')
-            await self.accept(subprotocol=protocols[0])
-        
+            self.user = await self.user
+            if not self.user.is_authenticated:
+                await self.close()
+            else:
+                self.group_name = f'user_{self.user.username}'
+                await self.channel_layer.group_add(
+                    self.group_name,
+                    self.channel_name
+                )
+                protocols = self.scope.get('subprotocols')
+                await self.accept(subprotocol=protocols[0])
+            
     async def disconnect(self, close_code):
         if self.user and self.user.is_authenticated:
             await self.channel_layer.group_discard(
@@ -49,6 +50,7 @@ class MainConsumer(AsyncWebsocketConsumer):
             await self.close()
             
     async def execute_query(self, query, variables):
-        result = schema.execute(query, variable_values=variables)
+        result = schema.execute(query, variables=variables, context_value={'user': self.user})
+        print(result.errors)
         return result.data
     
