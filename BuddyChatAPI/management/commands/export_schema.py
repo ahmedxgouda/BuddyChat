@@ -1,16 +1,16 @@
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 import os
-import re
+import json
 
 class Command(BaseCommand):
     help = "Export GraphQL schema and save it as README.md"
 
     def handle(self, *args, **kwargs):
-        schema_file = "schema.graphql"
+        schema_file = "schema.json"
         output_file = "README.md"
 
-        # Step 1: Export the GraphQL schema
+        # Step 1: Export the GraphQL schema as JSON
         self.stdout.write("Exporting GraphQL schema...")
         call_command("graphql_schema", "--out", schema_file)
         self.stdout.write(f"Schema exported to {schema_file}")
@@ -19,43 +19,36 @@ class Command(BaseCommand):
         self.stdout.write(f"Generating {output_file}...")
         try:
             with open(schema_file, "r", encoding="utf-8") as sf, open(output_file, "w", encoding="utf-8") as of:
-                schema_content = sf.read()
+                schema_content = json.load(sf)
                 of.write("# 📊 BuddyChat API Documentation\n\n")
                 of.write("## Overview\n\n")
                 of.write("This file documents the GraphQL schema for BuddyChat API. The schema is divided into two sections: Queries, and Mutations.\n\n")
 
-                # Extract queries, mutations, and app-specific types
-                current_section = None
-                count = 0
-                for line in schema_content.splitlines():
-                    if re.match(r'type Query', line):
-                        current_section = "Queries"
-                        of.write("## Queries\n\n")
-                    elif re.match(r'type Mutation', line):
-                        current_section = "Mutations"
-                        of.write("## Mutations\n\n")
-                    elif re.match(r'type (\w+)', line) and 'Query' not in line and 'Mutation' not in line:
-                        app_type_match = re.match(r'type (\w+)', line)
-                        if app_type_match:
-                            app_type = app_type_match.group(1)
-                            if count > 0:
-                                of.write("```\n\n")
-                            of.write(f"### {app_type}\n\n")
-                            of.write(f"```graphql\n{line}\n\n")
-                            current_section = None
-                            count += 1
-                    elif current_section and re.match(r'\s+\w+\(', line):
-                        operation_match = re.match(r'\s+(\w+)\((.*)\): (\w+)', line)
-                        if operation_match:
-                            name, args, return_type = operation_match.groups()
-                            if current_section in ["Queries", "Mutations"]:
-                                of.write(f"- **{name}**({args}) → `{return_type}`\n")
-                            else:
-                                of.write(f"{line}\n")
-                    else:
-                        # if current_section:
-                        of.write(f"{line}\n")
-                    
+                for type_data in schema_content["data"]["__schema"]["types"]:
+                    type_name = type_data["name"]
+                    if type_data["kind"] == "OBJECT":
+                        if type_name == "Query":
+                            of.write("## Queries\n\n")
+                        elif type_name == "Mutation":
+                            of.write("## Mutations\n\n")
+                        else:
+                            description = type_data.get("description", "No description available.")
+                            of.write(f"### {type_name}\n\n")
+                            of.write(f"**Description:** {description}\n\n")
+                            of.write("```graphql\n")
+                            of.write(f"type {type_name} {{\n")
+
+                        for field in type_data.get("fields", []):
+                            args = ", ".join(
+                                [f"{arg['name']}: {arg['type']['name']}" for arg in field.get("args", [])]
+                            )
+                            return_type = field["type"].get("name") or field["type"].get("ofType", {}).get("name")
+                            field_description = field.get("description", "No description available.")
+                            of.write(f"- **{field['name']}**({args}) → `{return_type}`\n")
+                            of.write(f"  *Description:* {field_description}\n\n")
+
+                        if type_name not in ["Query", "Mutation"]:
+                            of.write("}\n\n```\n\n")
 
             self.stdout.write(f"Successfully created {output_file}")
         except FileNotFoundError:
