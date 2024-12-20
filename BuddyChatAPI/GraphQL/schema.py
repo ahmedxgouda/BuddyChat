@@ -1,16 +1,16 @@
 import graphene
 from graphene.relay.node import Node
 from graphene_django.filter import DjangoFilterConnectionField
-from .types import CustomUserType, ChatType, NotificationType, UserGroupMemberCopyType, ChatMessageType
+from .types import CustomUserType, ChatType, NotificationType, UserGroupMemberCopyType, SubsctiptionType
 from .mutations.notification_mutations import SetNotificationAsRead
 from .mutations.auth_mutations import AuthMutation
 from .mutations.group_mutations import GroupMutations
 from .mutations.chat_mutations import ChatMutations
 from graphql_jwt.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from ..models import CustomUser, GroupMember, Chat, UserGroupMemberCopy, ChatMessage
-from channels.layers import get_channel_layer
+from ..models import CustomUser, GroupMember, Chat, UserGroupMemberCopy, ChatMessage, Message
 from channels.db import database_sync_to_async
+import asyncio
     
 class Query(graphene.ObjectType):
     users = DjangoFilterConnectionField(CustomUserType, fields=['username', 'first_name', 'last_name'], max_limit=20)
@@ -57,12 +57,20 @@ class Mutation(AuthMutation, GroupMutations, ChatMutations, graphene.ObjectType)
     set_notification_read = SetNotificationAsRead.Field()
     
 class Subscription(graphene.ObjectType):
-
-    chat_message = graphene.Field(ChatMessageType)
+    subscription = graphene.Field(SubsctiptionType)
     
-    async def resolve_chat_message(root, info):
+    async def subscribe_subscription(root, info):
+        username = info.context['user']
+        chat_messages: ChatMessage = await database_sync_to_async(ChatMessage.objects.filter)(chat__user__username=username)
+        chat_message: ChatMessage = await database_sync_to_async(lambda: chat_messages.first())()
+        await database_sync_to_async(lambda: chat_message.message)()
+        chat: Chat = await database_sync_to_async(lambda: chat_message.chat)()
         while True:
-            yield await database_sync_to_async(ChatMessage.objects.filter)(chat__user=info.context.user).first()
-        
+            yield {
+                'chat': chat,
+                'chat_message': chat_message,
+            }
+            await asyncio.sleep(0.5)
+            
     
 schema = graphene.Schema(query=Query, mutation=Mutation, subscription=Subscription)

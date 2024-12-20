@@ -99,3 +99,7 @@ class UserGroupMemberCopyType(DjangoObjectType):
         model = UserGroupMemberCopy
         fields = "__all__"
         interfaces = (graphene.relay.Node, )
+
+class SubsctiptionType(graphene.ObjectType):
+    chat = graphene.Field(ChatType)
+    chat_message = graphene.Field(ChatMessageType)

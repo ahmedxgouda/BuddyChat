@@ -39,18 +39,29 @@ class MainConsumer(AsyncWebsocketConsumer):
             subscription_id = text_data_json.get('id')
             query = text_data_json.get('payload').get('query')
             variables = text_data_json.get('payload').get('variables')
-            result = await self.execute_query(query, variables)
-            await self.send(text_data=json.dumps({
-                'type': 'next',
-                'id': subscription_id,
-                'payload': result
-            }))
+            result = self.execute_query(query, variables)
+            async for item in result:
+                await self.send(text_data=json.dumps({
+                    'type': 'next',
+                    'id': subscription_id,
+                    'payload': item.data
+                }))
+
         elif message_type == 'disconnect':
             await self.send(text_data=json.dumps({'type': 'complete', 'id': text_data_json.get('id')}))
             await self.close()
             
     async def execute_query(self, query, variables):
-        result = schema.execute(query, variables=variables, context_value={'user': self.user})
-        print(result.errors)
-        return result.data
+        result = await schema.subscribe(query, variables, context_value={'user': self.user})
+        async for item in result:
+            yield item
+            
+    async def chat_message(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'next',
+            'message': event['message'],
+            'chat_id': event['chat_id']
+        }))
+        print('Message sent from consumer')
+        print(f'From consumer: {self.group_name}')
     
