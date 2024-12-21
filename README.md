@@ -21,7 +21,6 @@
   - [AttachmentType](#attachmenttype)
   - [NotificationType](#notificationtype)
   - [UserGroupMemberCopyType](#usergroupmembercopytype)
-  - [SubsctiptionType](#subsctiptiontype)
 - [Mutation Types](#mutation-types)
   - [CreateGroup](#creategroup)
   - [CreateGroupMessage](#creategroupmessage)
@@ -44,6 +43,17 @@
   - [CreateUserWithPhoneNumber](#createuserwithphonenumber)
   - [AddPhoneNumber](#addphonenumber)
   - [RemovePhoneNumber](#removephonenumber)
+  - [CreateChat](#createchat)
+  - [CreateSelfChat](#createselfchat)
+  - [CreateChatMessage](#createchatmessage)
+  - [UpdateChatMessage](#updatechatmessage)
+  - [DeleteChatMessage](#deletechatmessage)
+  - [UnsendChatMessage](#unsendchatmessage)
+  - [DeleteChat](#deletechat)
+  - [SetChatArchived](#setchatarchived)
+  - [SetChatMessageAsRead](#setchatmessageasread)
+- [Subscription Types](#subscription-types)
+  - [SubscriptionType](#subscriptiontype)
 
 ## Overview
 
@@ -100,6 +110,15 @@ The API endpoint is `/graphql`.
 - leave_group: A mutation to leave a group
 - remove_group_permanently: A mutation to remove a group permanently
 - set_archive_group: A mutation to archive a group
+- create_chat: A mutation to create two chat copies for two users
+- create_self_chat: A mutation to create a chat copy for the current user
+- create_chat_message: A mutation to create a chat message. A chat message is created for each user, and a notification is created for the other user
+- update_chat_message: A mutation to update a chat message
+- delete_chat_message: A mutation to delete a chat message. Deletes the message for the chat copy of the current user
+- unsend_chat_message: A mutation to unsend a chat message. Deletes the message for both chat copies
+- delete_chat: A mutation to delete a chat. Messages are deleted for the chat copy of the current user
+- set_archive_chat: A mutation to archive or unarchive a chat
+- set_chat_message_as_read: A mutation to set a chat message as read
 
 ## Subscriptions
 
@@ -256,17 +275,6 @@ type UserGroupMemberCopyType {
 ```
 
 Description: The user group member copy type. The user copy of the group, so that each user can have a copy of the group messages.
-
-### SubsctiptionType
-
-```graphql
-type SubsctiptionType {
-    chat: ChatType
-    chatMessage: ChatMessageType
-}
-```
-
-Description: The subscription type.
 
 ## Mutation Types
 
@@ -480,3 +488,107 @@ type RemovePhoneNumber {
 ```
 
 Description: Mutation to remove a phone number from the current user.
+
+### CreateChat
+
+```graphql
+type CreateChat {
+    chat: ChatType
+    otherChat: ChatType
+}
+```
+
+Description: Mutation to create two chat copies for two users.
+
+### CreateSelfChat
+
+```graphql
+type CreateSelfChat {
+    chat: ChatType
+}
+```
+
+Description: Mutation to create a chat for the user.
+
+### CreateChatMessage
+
+```graphql
+type CreateChatMessage {
+    chatMessage: ChatMessageType
+}
+```
+
+Description: Mutation to create a chat message. A chat message is created for each user, and a notification is created for the other user.
+
+### UpdateChatMessage
+
+```graphql
+type UpdateChatMessage {
+    chatMessage: ChatMessageType
+}
+```
+
+Description: Mutation to update a chat message.
+
+### DeleteChatMessage
+
+```graphql
+type DeleteChatMessage {
+    success: Boolean
+}
+```
+
+Description: Mutation to delete a chat message. Deletes the message for the chat copy of the current user.
+
+### UnsendChatMessage
+
+```graphql
+type UnsendChatMessage {
+    success: Boolean
+}
+```
+
+Description: Mutation to unsend a chat message. Deletes the message for both chat copies.
+
+### DeleteChat
+
+```graphql
+type DeleteChat {
+    success: Boolean
+}
+```
+
+Description: Mutation to delete a chat. Messages are deleted for the chat copy of the current user.
+
+### SetChatArchived
+
+```graphql
+type SetChatArchived {
+    chat: ChatType
+}
+```
+
+Description: Mutation to archive or unarchive a chat.
+
+### SetChatMessageAsRead
+
+```graphql
+type SetChatMessageAsRead {
+    chatMessage: ChatMessageType
+}
+```
+
+Description: Mutation to set a chat message as read.
+
+## Subscription Types
+
+### SubscriptionType
+
+```graphql
+type SubsctiptionType {
+    chat: ChatType
+    chatMessage: ChatMessageType
+}
+```
+
+Description: The subscription type.
