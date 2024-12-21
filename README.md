@@ -3,1240 +3,480 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Model UML Diagram](#model-uml-diagram)
+- [Endpoint](#endpoint)
 - [Queries](#queries)
-  - [users](#users)
-  - [chats](#chats)
-  - [groups](#groups)
-  - [notifications](#notifications)
-  - [chat](#chat)
-  - [group](#group)
-  - [user](#user)
 - [Mutations](#mutations)
-  - [createChat](#createchat)
-  - [createChatMessage](#createchatmessage)
-  - [deleteChat](#deletechat)
-  - [updateChatMessage](#updatechatmessage)
-  - [unsendChatMessage](#unsendchatmessage)
-  - [deleteChatMessage](#deletechatmessage)
-  - [setChatMessageAsRead](#setchatmessageasread)
-  - [setChatArchived](#setchatarchived)
-  - [createSelfChat](#createselfchat)
-  - [createGroup](#creategroup)
-  - [createGroupMessage](#creategroupmessage)
-  - [createGroupMember](#creategroupmember)
-  - [changeAdmin](#changeadmin)
-  - [updateGroup](#updategroup)
-  - [deleteGroup](#deletegroup)
-  - [updateGroupMessage](#updategroupmessage)
-  - [deleteGroupMessage](#deletegroupmessage)
-  - [unsendGroupMessage](#unsendgroupmessage)
-  - [removeGroupMember](#removegroupmember)
-  - [leaveGroup](#leavegroup)
-  - [removeGroupPermanently](#removegrouppermanently)
-  - [setArchiveGroup](#setarchivegroup)
-  - [login](#login)
-  - [refreshToken](#refreshtoken)
-  - [verifyToken](#verifytoken)
-  - [revokeToken](#revoketoken)
-  - [createUser](#createuser)
-  - [addPhoneNumber](#addphonenumber)
-  - [removePhoneNumber](#removephonenumber)
-  - [updateUser](#updateuser)
-  - [changePassword](#changepassword)
-  - [deleteUser](#deleteuser)
-  - [setNotificationRead](#setnotificationread)
+- [Subscriptions](#subscriptions)
+- [Types](#types)
+  - [CustomUserType](#customusertype)
+  - [PhoneNumberType](#phonenumbertype)
+  - [PhoneNumberInputType](#phonenumberinputtype)
+  - [MessageType](#messagetype)
+  - [ChatType](#chattype)
+  - [ChatMessageType](#chatmessagetype)
+  - [UserGroupType](#usergrouptype)
+  - [GroupMessageType](#groupmessagetype)
+  - [GroupMemberType](#groupmembertype)
+  - [AttachmentType](#attachmenttype)
+  - [NotificationType](#notificationtype)
+  - [UserGroupMemberCopyType](#usergroupmembercopytype)
+  - [SubsctiptionType](#subsctiptiontype)
+- [Mutation Types](#mutation-types)
+  - [CreateGroup](#creategroup)
+  - [CreateGroupMessage](#creategroupmessage)
+  - [CreateGroupMember](#creategroupmember)
+  - [ChangeAdmin](#changeadmin)
+  - [UpdateGroup](#updategroup)
+  - [DeleteGroup](#deletegroup)
+  - [UpdateGroupMessage](#updategroupmessage)
+  - [DeleteGroupMessage](#deletegroupmessage)
+  - [UnsendGroupMessage](#unsendgroupmessage)
+  - [RemoveGroupMember](#removegroupmember)
+  - [LeaveGroup](#leavegroup)
+  - [RemoveGroup](#removegroup)
+  - [SetArchiveGroup](#setarchivegroup)
+  - [SetNotificationAsRead](#setnotificationasread)
+  - [CreateUser](#createuser)
+  - [UpdateUser](#updateuser)
+  - [ChangePassword](#changepassword)
+  - [DeleteUser](#deleteuser)
+  - [CreateUserWithPhoneNumber](#createuserwithphonenumber)
+  - [AddPhoneNumber](#addphonenumber)
+  - [RemovePhoneNumber](#removephonenumber)
 
 ## Overview
 
-This document provides an overview of the BuddyChat API, including the GraphQL schema for queries and mutations.
+This is the API documentation for the BuddyChat API. The API is built with Django and GraphQL using graphene. The API introduces a chat system with the following features:
+
+- User registration and authentication
+- Chat system
+- Group chat system
+- Notifications
+- Real-time chat messages
+- Copy of messages for each user which leads to the ability to delete messages for each user
+
+## Model UML Diagram
+
+![Model Diagram](./model.drawio.png)
+
+## Endpoint
+
+The API endpoint is `/graphql`.
 
 ## Queries
 
-- **users**(offset: Int, before: String, after: String, first: Int, last: Int, username: String, firstName: String, lastName: String) → `CustomUserTypeConnection`
-  *Description:* None
+- users: The users in the system
+- chats: The chats for the current user
+- groups: The group copies for the current user
+- notifications: The notifications for the current user
+- chat: Resolve a chat for the current user
+- group: Resolve a group copy for the current user
+- user: Resolve a user
 
-- **chats**(offset: Int, before: String, after: String, first: Int, last: Int, archived: Boolean) → `ChatTypeConnection`
-  *Description:* None
+## Mutations
 
-- **groups**(offset: Int, before: String, after: String, first: Int, last: Int, isArchived: Boolean) → `UserGroupMemberCopyTypeConnection`
-  *Description:* None
+- set_notification_read: Set a notification as read
+- login: Login to the API. Returns a token
+- refresh_token: Refresh the token
+- verify_token: Verify the token
+- revoke_token: Revoke the token
+- create_user: Create a user with a phone number
+- add_phone_number: Add a phone number to the current user
+- remove_phone_number: Remove a phone number from the current user
+- update_user: Update the current user's data
+- change_password: Change the current user's password
+- delete_user: Delete the current user
+- create_group: A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator
+- create_group_message: A mutation to create a group message. A group message is created for each group member, and a notification is created for each group member
+- create_group_member: A mutation to add a member to a group
+- change_admin: A mutation to change the admin status of a group member
+- update_group: A mutation to update a group
+- delete_group: A mutation to delete a group. Messages are deleted for the group copy of the current user
+- update_group_message: A mutation to update a group message
+- delete_group_message: A mutation to delete a group message. Deletes the message for the group copy of the current user
+- unsend_group_message: A mutation to unsend a group message. Deletes the message for all group members
+- remove_group_member: A mutation to remove a member from a group
+- leave_group: A mutation to leave a group
+- remove_group_permanently: A mutation to remove a group permanently
+- set_archive_group: A mutation to archive a group
 
-- **notifications**(offset: Int, before: String, after: String, first: Int, last: Int, isRead: Boolean) → `NotificationTypeConnection`
-  *Description:* None
+## Subscriptions
 
-- **chat**(id: ID) → `ChatType`
-  *Description:* None
+- subscription: The subscription for the chat messages
 
-- **group**(id: ID) → `UserGroupMemberCopyType`
-  *Description:* None
-
-- **user**(id: ID) → `CustomUserType`
-  *Description:* None
-
-### CustomUserTypeConnection
-
-**Description:** None
-
-```graphql
-type CustomUserTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
-}
-
-```
-
-### PageInfo
-
-**Description:** The Relay compliant `PageInfo` type, containing data necessary to paginate this connection.
-
-```graphql
-type PageInfo {
-- **hasNextPage**() → `Boolean`
-  *Description:* When paginating forwards, are there more items?
-
-- **hasPreviousPage**() → `Boolean`
-  *Description:* When paginating backwards, are there more items?
-
-- **startCursor**() → `String`
-  *Description:* When paginating backwards, the cursor to continue.
-
-- **endCursor**() → `String`
-  *Description:* When paginating forwards, the cursor to continue.
-
-}
-
-```
-
-### CustomUserTypeEdge
-
-**Description:** A Relay edge containing a `CustomUserType` and its cursor.
-
-```graphql
-type CustomUserTypeEdge {
-- **node**() → `CustomUserType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
-}
-
-```
+## Types
 
 ### CustomUserType
 
-**Description:** None
-
 ```graphql
 type CustomUserType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **lastLogin**() → `DateTime`
-  *Description:* None
-
-- **username**() → `String`
-  *Description:* Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.
-
-- **firstName**() → `String`
-  *Description:* None
-
-- **lastName**() → `String`
-  *Description:* None
-
-- **email**() → `String`
-  *Description:* None
-
-- **isActive**() → `Boolean`
-  *Description:* Designates whether this user should be treated as active. Unselect this instead of deleting accounts.
-
-- **dateJoined**() → `DateTime`
-  *Description:* None
-
-- **phone**() → `String`
-  *Description:* None
-
-- **bio**() → `String`
-  *Description:* None
-
-- **profilePic**() → `String`
-  *Description:* None
-
-- **updatedAt**() → `DateTime`
-  *Description:* None
-
-- **phoneNumbers**() → `PhoneNumberType`
-  *Description:* None
-
-- **sentMessages**() → `None`
-  *Description:* None
-
-- **chats**(offset: Int, before: String, after: String, first: Int, last: Int, archived: Boolean) → `ChatTypeConnection`
-  *Description:* None
-
-- **createdGroups**(offset: Int, before: String, after: String, first: Int, last: Int) → `UserGroupTypeConnection`
-  *Description:* None
-
-- **userGroups**(offset: Int, before: String, after: String, first: Int, last: Int) → `GroupMemberTypeConnection`
-  *Description:* None
-
-- **notifications**(offset: Int, before: String, after: String, first: Int, last: Int, isRead: Boolean) → `NotificationTypeConnection`
-  *Description:* None
-
+    id: ID!
+    username: String!
+    firstName: String!
+    lastName: String!
+    email: String!
+    phoneNumbers: [PhoneNumberType]
+    chats: [ChatType]
+    notifications: [NotificationType]
 }
-
 ```
+
+Description: The user type. It contains the user's information.
 
 ### PhoneNumberType
 
-**Description:** None
-
 ```graphql
 type PhoneNumberType {
-- **id**() → `ID`
-  *Description:* None
-
-- **number**() → `String`
-  *Description:* None
-
-- **countryCode**() → `String`
-  *Description:* None
-
-- **user**() → `CustomUserType`
-  *Description:* None
-
+    id: ID!
+    number: String!
+    countryCode: String!
 }
+```
 
+### PhoneNumberInputType
+
+```graphql
+input PhoneNumberInputType {
+    number: String!
+    countryCode: String!
+}
 ```
 
 ### MessageType
 
-**Description:** None
-
 ```graphql
 type MessageType {
-- **id**() → `ID`
-  *Description:* None
-
-- **sender**() → `CustomUserType`
-  *Description:* None
-
-- **content**() → `String`
-  *Description:* None
-
-- **date**() → `DateTime`
-  *Description:* None
-
-- **readAt**() → `DateTime`
-  *Description:* None
-
-- **chatMessages**(offset: Int, before: String, after: String, first: Int, last: Int) → `ChatMessageTypeConnection`
-  *Description:* None
-
-- **groupMessages**(offset: Int, before: String, after: String, first: Int, last: Int) → `GroupMessageTypeConnection`
-  *Description:* None
-
-- **notifications**(offset: Int, before: String, after: String, first: Int, last: Int) → `NotificationTypeConnection`
-  *Description:* None
-
-- **attachments**() → `None`
-  *Description:* None
-
+    id: ID!
+    content: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
 }
-
 ```
 
-### ChatMessageTypeConnection
-
-**Description:** None
-
-```graphql
-type ChatMessageTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
-}
-
-```
-
-### ChatMessageTypeEdge
-
-**Description:** A Relay edge containing a `ChatMessageType` and its cursor.
-
-```graphql
-type ChatMessageTypeEdge {
-- **node**() → `ChatMessageType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
-}
-
-```
-
-### ChatMessageType
-
-**Description:** None
-
-```graphql
-type ChatMessageType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **message**() → `MessageType`
-  *Description:* None
-
-- **chat**() → `ChatType`
-  *Description:* None
-
-- **lastMessage**(offset: Int, before: String, after: String, first: Int, last: Int) → `ChatTypeConnection`
-  *Description:* None
-
-}
-
-```
+Description: The root message type which is the dependent type for the chat message and group message types.
 
 ### ChatType
 
-**Description:** None
-
 ```graphql
 type ChatType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **user**() → `CustomUserType`
-  *Description:* None
-
-- **otherUser**() → `CustomUserType`
-  *Description:* None
-
-- **archived**() → `Boolean`
-  *Description:* None
-
-- **lastMessage**() → `ChatMessageType`
-  *Description:* None
-
-- **chatMessages**(offset: Int, before: String, after: String, first: Int, last: Int) → `ChatMessageTypeConnection`
-  *Description:* None
-
+    id: ID!
+    archived: Boolean!
+    messages: [ChatMessageType]
 }
-
 ```
 
-### ChatTypeConnection
+Description: The chat type. Each user has a chat copy for each other user they have chatted with.
 
-**Description:** None
+### ChatMessageType
 
 ```graphql
-type ChatTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
+type ChatMessageType {
+    id: ID!
+    content: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
 }
-
 ```
 
-### ChatTypeEdge
-
-**Description:** A Relay edge containing a `ChatType` and its cursor.
-
-```graphql
-type ChatTypeEdge {
-- **node**() → `ChatType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
-}
-
-```
-
-### GroupMessageTypeConnection
-
-**Description:** None
-
-```graphql
-type GroupMessageTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
-}
-
-```
-
-### GroupMessageTypeEdge
-
-**Description:** A Relay edge containing a `GroupMessageType` and its cursor.
-
-```graphql
-type GroupMessageTypeEdge {
-- **node**() → `GroupMessageType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
-}
-
-```
-
-### GroupMessageType
-
-**Description:** None
-
-```graphql
-type GroupMessageType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **message**() → `MessageType`
-  *Description:* None
-
-- **userGroupCopy**() → `UserGroupMemberCopyType`
-  *Description:* None
-
-- **lastMessage**(offset: Int, before: String, after: String, first: Int, last: Int) → `UserGroupMemberCopyTypeConnection`
-  *Description:* None
-
-}
-
-```
-
-### UserGroupMemberCopyType
-
-**Description:** None
-
-```graphql
-type UserGroupMemberCopyType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **member**() → `GroupMemberType`
-  *Description:* None
-
-- **isArchived**() → `Boolean`
-  *Description:* None
-
-- **lastMessage**() → `GroupMessageType`
-  *Description:* None
-
-- **groupMessages**(offset: Int, before: String, after: String, first: Int, last: Int) → `GroupMessageTypeConnection`
-  *Description:* None
-
-}
-
-```
-
-### GroupMemberType
-
-**Description:** None
-
-```graphql
-type GroupMemberType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **userGroup**() → `UserGroupType`
-  *Description:* None
-
-- **member**() → `CustomUserType`
-  *Description:* None
-
-- **joinedAt**() → `DateTime`
-  *Description:* None
-
-- **isAdmin**() → `Boolean`
-  *Description:* None
-
-- **groupMember**(offset: Int, before: String, after: String, first: Int, last: Int) → `UserGroupMemberCopyTypeConnection`
-  *Description:* None
-
-}
-
-```
+Description: The chat message type. It contains the chat message information.
 
 ### UserGroupType
 
-**Description:** None
-
 ```graphql
 type UserGroupType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **title**() → `String`
-  *Description:* None
-
-- **description**() → `String`
-  *Description:* None
-
-- **membersCount**() → `Int`
-  *Description:* None
-
-- **createdBy**() → `CustomUserType`
-  *Description:* None
-
-- **groupImage**() → `String`
-  *Description:* None
-
-- **updatedAt**() → `DateTime`
-  *Description:* None
-
-- **members**(offset: Int, before: String, after: String, first: Int, last: Int) → `GroupMemberTypeConnection`
-  *Description:* None
-
+    id: ID!
+    title: String!
+    
+Description: String!
+    members: [GroupMemberType]
+    messages: [GroupMessageType]
 }
-
 ```
 
-### GroupMemberTypeConnection
+Description: The root user group type. It contains the main information. GroupMemberType depends on this type.
 
-**Description:** None
+### GroupMessageType
 
 ```graphql
-type GroupMemberTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
+type GroupMessageType {
+    id: ID!
+    content: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
 }
-
 ```
 
-### GroupMemberTypeEdge
+Description: The group message type. It contains the group message information.
 
-**Description:** A Relay edge containing a `GroupMemberType` and its cursor.
+### GroupMemberType
 
 ```graphql
-type GroupMemberTypeEdge {
-- **node**() → `GroupMemberType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
+type GroupMemberType {
+    id: ID!
+    user: CustomUserType!
+    group: UserGroupType!
+    isAdmin: Boolean!
 }
-
 ```
 
-### UserGroupMemberCopyTypeConnection
+Description: The group member type. It contains the group member information.
 
-**Description:** None
-
-```graphql
-type UserGroupMemberCopyTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
-}
-
-```
-
-### UserGroupMemberCopyTypeEdge
-
-**Description:** A Relay edge containing a `UserGroupMemberCopyType` and its cursor.
+### AttachmentType
 
 ```graphql
-type UserGroupMemberCopyTypeEdge {
-- **node**() → `UserGroupMemberCopyType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
+type AttachmentType {
+    id: ID!
+    file: String!
+    message: MessageType!
 }
-
-```
-
-### NotificationTypeConnection
-
-**Description:** None
-
-```graphql
-type NotificationTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
-}
-
-```
-
-### NotificationTypeEdge
-
-**Description:** A Relay edge containing a `NotificationType` and its cursor.
-
-```graphql
-type NotificationTypeEdge {
-- **node**() → `NotificationType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
-}
-
 ```
 
 ### NotificationType
 
-**Description:** None
-
 ```graphql
 type NotificationType {
-- **id**() → `ID`
-  *Description:* The ID of the object
-
-- **message**() → `MessageType`
-  *Description:* None
-
-- **receiver**() → `CustomUserType`
-  *Description:* None
-
-- **isRead**() → `Boolean`
-  *Description:* None
-
+    id: ID!
+    content: String!
+    isRead: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime!
 }
-
 ```
 
-### AttachmentType
-
-**Description:** None
+### UserGroupMemberCopyType
 
 ```graphql
-type AttachmentType {
-- **id**() → `ID`
-  *Description:* None
-
-- **message**() → `MessageType`
-  *Description:* None
-
-- **file**() → `String`
-  *Description:* None
-
+type UserGroupMemberCopyType {
+    id: ID!
+    user: CustomUserType!
+    group: UserGroupType!
+    isArchived: Boolean!
 }
-
 ```
 
-### UserGroupTypeConnection
+Description: The user group member copy type. The user copy of the group, so that each user can have a copy of the group messages.
 
-**Description:** None
+### SubsctiptionType
 
 ```graphql
-type UserGroupTypeConnection {
-- **pageInfo**() → `PageInfo`
-  *Description:* Pagination data for this connection.
-
-- **edges**() → `None`
-  *Description:* Contains the nodes in this connection.
-
+type SubsctiptionType {
+    chat: ChatType
+    chatMessage: ChatMessageType
 }
-
 ```
 
-### UserGroupTypeEdge
+Description: The subscription type.
 
-**Description:** A Relay edge containing a `UserGroupType` and its cursor.
-
-```graphql
-type UserGroupTypeEdge {
-- **node**() → `UserGroupType`
-  *Description:* The item at the end of the edge
-
-- **cursor**() → `String`
-  *Description:* A cursor for use in pagination
-
-}
-
-```
-
-## Mutations
-
-- **createChat**(otherUserId: ID) → `CreateChat`
-  *Description:* None
-
-- **createChatMessage**(chatId: ID, content: String) → `CreateChatMessage`
-  *Description:* None
-
-- **deleteChat**(chatId: ID) → `DeleteChat`
-  *Description:* None
-
-- **updateChatMessage**(chatMessageId: ID, content: String) → `UpdateChatMessage`
-  *Description:* None
-
-- **unsendChatMessage**(chatMessageId: ID) → `UnsendChatMessage`
-  *Description:* None
-
-- **deleteChatMessage**(chatMessageId: ID) → `DeleteChatMessage`
-  *Description:* None
-
-- **setChatMessageAsRead**(chatMessageId: ID) → `SetChatMessageAsRead`
-  *Description:* None
-
-- **setChatArchived**(archived: Boolean, chatId: ID) → `SetChatArchived`
-  *Description:* None
-
-- **createSelfChat**() → `CreateSelfChat`
-  *Description:* None
-
-- **createGroup**(title: String) → `CreateGroup`
-  *Description:* None
-
-- **createGroupMessage**(content: String, groupCopyId: ID) → `CreateGroupMessage`
-  *Description:* None
-
-- **createGroupMember**(groupCopyId: ID, memberId: ID) → `CreateGroupMember`
-  *Description:* None
-
-- **changeAdmin**(groupCopyId: ID, isAdmin: Boolean, memberId: ID) → `ChangeAdmin`
-  *Description:* None
-
-- **updateGroup**(description: String, groupCopyId: ID, groupImage: String, title: String) → `UpdateGroup`
-  *Description:* None
-
-- **deleteGroup**(groupCopyId: ID) → `DeleteGroup`
-  *Description:* None
-
-- **updateGroupMessage**(content: String, groupMessageId: ID) → `UpdateGroupMessage`
-  *Description:* None
-
-- **deleteGroupMessage**(groupMessageId: ID) → `DeleteGroupMessage`
-  *Description:* None
-
-- **unsendGroupMessage**(groupMessageId: ID) → `UnsendGroupMessage`
-  *Description:* None
-
-- **removeGroupMember**(groupCopyId: ID, memberId: ID) → `RemoveGroupMember`
-  *Description:* None
-
-- **leaveGroup**(groupCopyId: ID) → `LeaveGroup`
-  *Description:* None
-
-- **removeGroupPermanently**(groupCopyId: ID) → `RemoveGroup`
-  *Description:* None
-
-- **setArchiveGroup**(groupCopyId: ID, isArchived: Boolean) → `SetArchiveGroup`
-  *Description:* None
-
-- **login**(username: None, password: None) → `ObtainJSONWebToken`
-  *Description:* Obtain JSON Web Token mutation
-
-- **refreshToken**(refreshToken: String) → `Refresh`
-  *Description:* None
-
-- **verifyToken**(token: String) → `Verify`
-  *Description:* None
-
-- **revokeToken**(refreshToken: String) → `Revoke`
-  *Description:* None
-
-- **createUser**(email: None, firstName: None, lastName: None, password: None, phone: String, phoneNumber: None, username: None) → `CreateUserWithPhoneNumber`
-  *Description:* None
-
-- **addPhoneNumber**(countryCode: None, number: None) → `AddPhoneNumber`
-  *Description:* None
-
-- **removePhoneNumber**(phoneId: None) → `RemovePhoneNumber`
-  *Description:* None
-
-- **updateUser**(bio: String, firstName: String, lastName: String, profilePicture: String) → `UpdateUser`
-  *Description:* None
-
-- **changePassword**(newPassword: String, oldPassword: String) → `ChangePassword`
-  *Description:* None
-
-- **deleteUser**(password: String) → `DeleteUser`
-  *Description:* None
-
-- **setNotificationRead**(notificationId: ID) → `SetNotificationAsRead`
-  *Description:* None
-
-### CreateChat
-
-**Description:** None
-
-```graphql
-type CreateChat {
-- **chat**() → `ChatType`
-  *Description:* None
-
-- **otherChat**() → `ChatType`
-  *Description:* None
-
-}
-
-```
-
-### CreateChatMessage
-
-**Description:** None
-
-```graphql
-type CreateChatMessage {
-- **chatMessage**() → `ChatMessageType`
-  *Description:* None
-
-}
-
-```
-
-### DeleteChat
-
-**Description:** None
-
-```graphql
-type DeleteChat {
-- **success**() → `Boolean`
-  *Description:* None
-
-}
-
-```
-
-### UpdateChatMessage
-
-**Description:** None
-
-```graphql
-type UpdateChatMessage {
-- **chatMessage**() → `ChatMessageType`
-  *Description:* None
-
-}
-
-```
-
-### UnsendChatMessage
-
-**Description:** None
-
-```graphql
-type UnsendChatMessage {
-- **success**() → `Boolean`
-  *Description:* None
-
-}
-
-```
-
-### DeleteChatMessage
-
-**Description:** None
-
-```graphql
-type DeleteChatMessage {
-- **success**() → `Boolean`
-  *Description:* None
-
-}
-
-```
-
-### SetChatMessageAsRead
-
-**Description:** None
-
-```graphql
-type SetChatMessageAsRead {
-- **chatMessage**() → `ChatMessageType`
-  *Description:* None
-
-}
-
-```
-
-### SetChatArchived
-
-**Description:** None
-
-```graphql
-type SetChatArchived {
-- **chat**() → `ChatType`
-  *Description:* None
-
-}
-
-```
-
-### CreateSelfChat
-
-**Description:** None
-
-```graphql
-type CreateSelfChat {
-- **chat**() → `ChatType`
-  *Description:* None
-
-}
-
-```
+## Mutation Types
 
 ### CreateGroup
 
-**Description:** None
-
 ```graphql
 type CreateGroup {
-- **userGroup**() → `UserGroupType`
-  *Description:* None
-
+    userGroup: UserGroupType
 }
-
 ```
+
+Description: A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator.
 
 ### CreateGroupMessage
 
-**Description:** None
-
 ```graphql
 type CreateGroupMessage {
-- **message**() → `MessageType`
-  *Description:* None
-
+    message: MessageType
 }
-
 ```
+
+Description: A mutation to create a group message. A group message is created for each group member, and a notification is created for each group member.
 
 ### CreateGroupMember
 
-**Description:** None
-
 ```graphql
 type CreateGroupMember {
-- **groupMember**() → `GroupMemberType`
-  *Description:* None
-
+    groupMember: GroupMemberType
 }
-
 ```
+
+Description: A mutation to add a member to a group.
 
 ### ChangeAdmin
 
-**Description:** None
-
 ```graphql
 type ChangeAdmin {
-- **groupMember**() → `GroupMemberType`
-  *Description:* None
-
+    groupMember: GroupMemberType
 }
-
 ```
+
+Description: A mutation to change the admin status of a group member.
 
 ### UpdateGroup
 
-**Description:** None
-
 ```graphql
 type UpdateGroup {
-- **groupCopy**() → `UserGroupMemberCopyType`
-  *Description:* None
-
+    groupCopy: UserGroupMemberCopyType
 }
-
 ```
+
+Description: A mutation to update a group.
 
 ### DeleteGroup
 
-**Description:** None
-
 ```graphql
 type DeleteGroup {
-- **success**() → `Boolean`
-  *Description:* None
-
+    success: Boolean
 }
-
 ```
+
+Description: A mutation to delete a group. Messages are deleted for the group copy of the current user.
 
 ### UpdateGroupMessage
 
-**Description:** None
-
 ```graphql
 type UpdateGroupMessage {
-- **groupMessage**() → `GroupMessageType`
-  *Description:* None
-
+    groupMessage: GroupMessageType
 }
-
 ```
+
+Description: A mutation to update a group message.
 
 ### DeleteGroupMessage
 
-**Description:** None
-
 ```graphql
 type DeleteGroupMessage {
-- **success**() → `Boolean`
-  *Description:* None
-
+    success: Boolean
 }
-
 ```
+
+Description: A mutation to delete a group message. Deletes the message for the group copy of the current user.
 
 ### UnsendGroupMessage
 
-**Description:** None
-
 ```graphql
 type UnsendGroupMessage {
-- **success**() → `Boolean`
-  *Description:* None
-
+    success: Boolean
 }
-
 ```
+
+Description: A mutation to unsend a group message. Deletes the message for all group members.
 
 ### RemoveGroupMember
 
-**Description:** None
-
 ```graphql
 type RemoveGroupMember {
-- **success**() → `Boolean`
-  *Description:* None
-
+    success: Boolean
 }
-
 ```
+
+Description: A mutation to remove a member from a group.
 
 ### LeaveGroup
 
-**Description:** None
-
 ```graphql
 type LeaveGroup {
-- **success**() → `Boolean`
-  *Description:* None
-
+    success: Boolean
 }
-
 ```
+
+Description: A mutation to leave a group.
 
 ### RemoveGroup
 
-**Description:** None
-
 ```graphql
 type RemoveGroup {
-- **success**() → `Boolean`
-  *Description:* None
-
+    success: Boolean
 }
-
 ```
+
+Description: A mutation to remove a group permanently.
 
 ### SetArchiveGroup
 
-**Description:** None
-
 ```graphql
 type SetArchiveGroup {
-- **groupCopy**() → `UserGroupMemberCopyType`
-  *Description:* None
-
+    groupCopy: UserGroupMemberCopyType
 }
-
 ```
 
-### ObtainJSONWebToken
-
-**Description:** Obtain JSON Web Token mutation
-
-```graphql
-type ObtainJSONWebToken {
-- **payload**() → `GenericScalar`
-  *Description:* None
-
-- **refreshExpiresIn**() → `Int`
-  *Description:* None
-
-- **token**() → `String`
-  *Description:* None
-
-- **refreshToken**() → `String`
-  *Description:* None
-
-}
-
-```
-
-### Refresh
-
-**Description:** None
-
-```graphql
-type Refresh {
-- **payload**() → `GenericScalar`
-  *Description:* None
-
-- **refreshExpiresIn**() → `Int`
-  *Description:* None
-
-- **token**() → `String`
-  *Description:* None
-
-- **refreshToken**() → `String`
-  *Description:* None
-
-}
-
-```
-
-### Verify
-
-**Description:** None
-
-```graphql
-type Verify {
-- **payload**() → `GenericScalar`
-  *Description:* None
-
-}
-
-```
-
-### Revoke
-
-**Description:** None
-
-```graphql
-type Revoke {
-- **revoked**() → `Int`
-  *Description:* None
-
-}
-
-```
-
-### CreateUserWithPhoneNumber
-
-**Description:** None
-
-```graphql
-type CreateUserWithPhoneNumber {
-- **user**() → `CustomUserType`
-  *Description:* None
-
-- **phoneNumber**() → `PhoneNumberType`
-  *Description:* None
-
-}
-
-```
-
-### AddPhoneNumber
-
-**Description:** None
-
-```graphql
-type AddPhoneNumber {
-- **phoneNumber**() → `PhoneNumberType`
-  *Description:* None
-
-}
-
-```
-
-### RemovePhoneNumber
-
-**Description:** None
-
-```graphql
-type RemovePhoneNumber {
-- **phoneId**() → `Int`
-  *Description:* None
-
-}
-
-```
-
-### UpdateUser
-
-**Description:** None
-
-```graphql
-type UpdateUser {
-- **user**() → `CustomUserType`
-  *Description:* None
-
-}
-
-```
-
-### ChangePassword
-
-**Description:** None
-
-```graphql
-type ChangePassword {
-- **user**() → `CustomUserType`
-  *Description:* None
-
-}
-
-```
-
-### DeleteUser
-
-**Description:** None
-
-```graphql
-type DeleteUser {
-- **userId**() → `Int`
-  *Description:* None
-
-}
-
-```
+Description: A mutation to archive a group.
 
 ### SetNotificationAsRead
 
-**Description:** None
-
 ```graphql
 type SetNotificationAsRead {
-- **notification**() → `NotificationType`
-  *Description:* None
-
+    notification: NotificationType
 }
-
 ```
 
-### Subscription
+Description: A mutation to set a notification as read.
 
-**Description:** None
+### CreateUser
 
 ```graphql
-type Subscription {
-- **chatMessage**() → `ChatMessageType`
-  *Description:* None
-
+type CreateUser {
+    user: CustomUserType
 }
-
 ```
+
+Description: Mutation to create a user. Deprecated.
+
+### UpdateUser
+
+```graphql
+type UpdateUser {
+    user: CustomUserType
+}
+```
+
+Description: Mutation to update the current user's data.
+
+### ChangePassword
+
+```graphql
+type ChangePassword {
+    user: CustomUserType
+}
+```
+
+Description: Mutation to change the current user's password.
+
+### DeleteUser
+
+```graphql
+type DeleteUser {
+    userId: Int
+}
+```
+
+Description: Mutation to delete the current user.
+
+### CreateUserWithPhoneNumber
+
+```graphql
+type CreateUserWithPhoneNumber {
+    user: CustomUserType
+    phoneNumber: PhoneNumberType
+}
+```
+
+Description: Mutation to create a user with a phone number.
+
+### AddPhoneNumber
+
+```graphql
+type AddPhoneNumber {
+    phoneNumber: PhoneNumberType
+}
+```
+
+Description: Mutation to add a phone number to the current user.
+
+### RemovePhoneNumber
+
+```graphql
+type RemovePhoneNumber {
+    success: Boolean
+}
+```
+
+Description: Mutation to remove a phone number from the current user.
