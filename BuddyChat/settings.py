@@ -144,6 +144,7 @@ GRAPHENE = {
     'SCHEMA': 'BuddyChatAPI.GraphQL.schema.schema',
     'MIDDLEWARE': [
         'graphql_jwt.middleware.JSONWebTokenMiddleware',
+        'BuddyChatAPI.GraphQL.depth_middleware.depth_middleware',
     ],
 }
 

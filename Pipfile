@@ -12,7 +12,6 @@ mysqlclient = "*"
 django-filter = "*"
 bleach = "*"
 django-graphql-jwt = "*"
-django-allauth = "*"
 channels = {extras = ["daphne"], version = "*"}
 django-ratelimit = "*"
 
