@@ -10,6 +10,7 @@ from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupM
 from django.utils import timezone
 
 class CreateGroup(graphene.Mutation):
+    """A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator"""
     class Arguments:
         title = graphene.String()
         
@@ -28,6 +29,7 @@ class CreateGroup(graphene.Mutation):
         return CreateGroup(user_group=user_group)
     
 class CreateGroupMessage(graphene.Mutation):
+    """A mutation to create a group message. A group message is created for each group member, and a notification is created for each group member"""
     class Arguments:
         group_copy_id = graphene.ID()
         content = graphene.String()
@@ -59,6 +61,7 @@ class CreateGroupMessage(graphene.Mutation):
         return CreateGroupMessage(message=message)
     
 class CreateGroupMember(graphene.Mutation):
+    """A mutation to add a member to a group"""
     class Arguments:
         group_copy_id = graphene.ID()
         member_id = graphene.ID()
@@ -75,6 +78,7 @@ class CreateGroupMember(graphene.Mutation):
         return CreateGroupMember(group_member=group_member)
 
 class ChangeAdmin(graphene.Mutation):
+    """A mutation to change the admin status of a group member"""
     class Arguments:
         group_copy_id = graphene.ID()
         member_id = graphene.ID()
@@ -95,6 +99,7 @@ class ChangeAdmin(graphene.Mutation):
         return ChangeAdmin(group_member=group_member)
     
 class UpdateGroup(graphene.Mutation):
+    """A mutation to update a group"""
     class Arguments:
         group_copy_id = graphene.ID()
         title = graphene.String(required=False)
@@ -124,6 +129,7 @@ class UpdateGroup(graphene.Mutation):
         return UpdateGroup(group_copy=user_group_copy)
 
 class DeleteGroup(graphene.Mutation):
+    """A mutation to delete a group. Messages are deleted for the group copy of the current user"""
     class Arguments:
         group_copy_id = graphene.ID()
         
@@ -138,6 +144,7 @@ class DeleteGroup(graphene.Mutation):
         return DeleteGroup(success=True)
 
 class UpdateGroupMessage(graphene.Mutation):
+    """A mutation to update a group message"""
     class Arguments:
         group_message_id = graphene.ID()
         content = graphene.String()
@@ -156,6 +163,7 @@ class UpdateGroupMessage(graphene.Mutation):
         return UpdateGroupMessage(group_message=group_message)
 
 class DeleteGroupMessage(graphene.Mutation):
+    """A mutation to delete a group message. Deletes the message for the group copy of the current user"""
     class Arguments:
         group_message_id = graphene.ID()
         
@@ -172,6 +180,7 @@ class DeleteGroupMessage(graphene.Mutation):
         return DeleteGroupMessage(success=True)
 
 class UnsendGroupMessage(graphene.Mutation):
+    """A mutation to unsend a group message. Deletes the message for all group members"""
     class Arguments:
         group_message_id = graphene.ID()
         
@@ -196,6 +205,7 @@ class UnsendGroupMessage(graphene.Mutation):
         return UnsendGroupMessage(success=True)
     
 class RemoveGroupMember(graphene.Mutation):
+    """A mutation to remove a member from a group"""
     class Arguments:
         group_copy_id = graphene.ID()
         member_id = graphene.ID()
@@ -216,6 +226,7 @@ class RemoveGroupMember(graphene.Mutation):
         return RemoveGroupMember(success=True)
 
 class LeaveGroup(graphene.Mutation):
+    """A mutation to leave a group"""
     class Arguments:
         group_copy_id = graphene.ID()
         
@@ -232,6 +243,7 @@ class LeaveGroup(graphene.Mutation):
         return LeaveGroup(success=True)
 
 class RemoveGroup(graphene.Mutation):
+    """A mutation to remove a group permanently"""
     class Arguments:
         group_copy_id = graphene.ID()
         
@@ -246,6 +258,7 @@ class RemoveGroup(graphene.Mutation):
         return RemoveGroup(success=True)
 
 class SetArchiveGroup(graphene.Mutation):
+    """A mutation to archive a group"""
     class Arguments:
         group_copy_id = graphene.ID()
         is_archived = graphene.Boolean()

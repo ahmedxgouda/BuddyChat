@@ -5,6 +5,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 from graphql_jwt.decorators import login_required
 from django.core.exceptions import PermissionDenied
 class CustomUserType(DjangoObjectType):
+    """The user type. It contains the user's information"""
     class Meta:
         model = CustomUser
         exclude = ('password', 'other_user_chats', 'is_superuser', 'is_staff', 'groups')
@@ -50,34 +51,40 @@ class PhoneNumberInputType(graphene.InputObjectType):
     country_code = graphene.String(required=True)
 
 class MessageType(DjangoObjectType):
+    """The root message type which is the dependent type for the chat message and group message types"""
     class Meta:
         model = Message
         fields = "__all__"
         
 
 class ChatType(DjangoObjectType):
+    """The chat type. Each user has a chat copy for each other user they have chatted with"""
     class Meta:
         model = Chat
         fields = "__all__"
         interfaces = (graphene.relay.Node, )
         
 class ChatMessageType(DjangoObjectType):
+    """The chat message type. It contains the chat message information"""
     class Meta:
         model = ChatMessage
         fields = "__all__"
         interfaces = (graphene.relay.Node, )
 
 class UserGroupType(DjangoObjectType):
+    """The root user group type. It contains the main information. GroupMemberType depends on this type"""
     class Meta:
         model = UserGroup
         fields = "__all__"
         interfaces = (graphene.relay.Node, )
 class GroupMessageType(DjangoObjectType):
+    """The group message type. It contains the group message information"""
     class Meta:
         model = GroupMessage
         fields = "__all__"
         interfaces = (graphene.relay.Node, )
 class GroupMemberType(DjangoObjectType):
+    """The group member type. It contains the group member information"""
     class Meta:
         model = GroupMember
         fields = "__all__"
@@ -95,11 +102,13 @@ class NotificationType(DjangoObjectType):
         interfaces = (graphene.relay.Node, )
 
 class UserGroupMemberCopyType(DjangoObjectType):
+    """The user group member copy type. The user copy of the group, so that each user can have a copy of the group messages"""
     class Meta:
         model = UserGroupMemberCopy
         fields = "__all__"
         interfaces = (graphene.relay.Node, )
 
 class SubsctiptionType(graphene.ObjectType):
+    """The subscription type"""
     chat = graphene.Field(ChatType)
     chat_message = graphene.Field(ChatMessageType)

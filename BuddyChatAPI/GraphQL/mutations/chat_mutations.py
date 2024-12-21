@@ -9,6 +9,7 @@ from django.utils import timezone
 from graphene.relay.node import Node
 
 class CreateChat(graphene.Mutation):
+    """A mutation to create a chat for each user"""
     
     class Arguments:
         other_user_id = graphene.ID()
@@ -27,6 +28,7 @@ class CreateChat(graphene.Mutation):
         return CreateChat(chat=chat, other_chat=other_user_chat)
     
 class CreateSelfChat(graphene.Mutation):
+    """A mutation to create a chat with oneself"""
         
     chat = graphene.Field(ChatType)
     
@@ -38,6 +40,7 @@ class CreateSelfChat(graphene.Mutation):
         return CreateSelfChat(chat=chat)
 
 class CreateChatMessage(graphene.Mutation):
+    """A mutation to create two chat messages, one for each user in each chat"""
     class Arguments:
         chat_id = graphene.ID()
         content = graphene.String()
@@ -71,6 +74,7 @@ class CreateChatMessage(graphene.Mutation):
         return CreateChatMessage(chat_message=chat_message)
     
 class DeleteChat(graphene.Mutation):
+    """A mutation to delete a chat"""
     class Arguments:
         chat_id = graphene.ID()
         
@@ -85,6 +89,7 @@ class DeleteChat(graphene.Mutation):
         return DeleteChat(success=True)
     
 class UpdateChatMessage(graphene.Mutation):
+    """A mutation to update a chat message"""
     class Arguments:
         chat_message_id = graphene.ID()
         content = graphene.String()
@@ -100,7 +105,7 @@ class UpdateChatMessage(graphene.Mutation):
         return UpdateChatMessage(chat_message=chat_message)
 
 class SetChatMessageAsRead(graphene.Mutation):
-    
+    """A mutation to set a chat message as read"""
     class Arguments:
         chat_message_id = graphene.ID()
         
@@ -114,6 +119,7 @@ class SetChatMessageAsRead(graphene.Mutation):
         return SetChatMessageAsRead(chat_message=chat_message)
 
 class UnsendChatMessage(graphene.Mutation):
+    """A mutation to unsend a chat message. Unsend means to delete the message from the two chats"""
     class Arguments:
         chat_message_id = graphene.ID()
         
@@ -152,6 +158,7 @@ class UnsendChatMessage(graphene.Mutation):
         return UnsendChatMessage(success=True)
 
 class DeleteChatMessage(graphene.Mutation):
+    """A mutation to delete a chat message. Delete means to delete the message from the user's chat only"""
     class Arguments:
         chat_message_id = graphene.ID()
         
@@ -175,6 +182,7 @@ class DeleteChatMessage(graphene.Mutation):
         return DeleteChatMessage(success=True)
 
 class SetChatArchived(graphene.Mutation):
+    """A mutation to set a chat as archived or unarchived"""
     class Arguments:
         chat_id = graphene.ID()
         archived = graphene.Boolean()

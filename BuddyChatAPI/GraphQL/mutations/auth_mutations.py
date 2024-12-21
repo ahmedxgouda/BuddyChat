@@ -7,7 +7,9 @@ from django.utils import timezone
 import bleach
 from django.core.exceptions import PermissionDenied
 from graphql_jwt import ObtainJSONWebToken, Refresh, Verify, Revoke
+from graphene.relay import Node
 class CreateUser(graphene.Mutation):
+    """Mutation to create a user. Deprecated"""
     class Arguments:
         username = graphene.String()
         email = graphene.String()
@@ -29,6 +31,7 @@ class CreateUser(graphene.Mutation):
         return CreateUser(user=user)
 
 class UpdateUser(graphene.Mutation):
+    """Mutation to update the current user's data"""
     class Arguments:
         first_name = graphene.String(required=False)
         last_name = graphene.String(required=False)
@@ -54,6 +57,7 @@ class UpdateUser(graphene.Mutation):
         return UpdateUser(user=user)
     
 class ChangePassword(graphene.Mutation):
+    """Mutation to change the current user's password"""
     class Arguments:
         old_password = graphene.String()
         new_password = graphene.String()
@@ -70,6 +74,7 @@ class ChangePassword(graphene.Mutation):
         return ChangePassword(user=user)
 
 class DeleteUser(graphene.Mutation):
+    """Mutation to delete the current user"""
     class Arguments:
         password = graphene.String()
     
@@ -84,6 +89,7 @@ class DeleteUser(graphene.Mutation):
         return DeleteUser(user_id=user_id)
     
 class CreateUserWithPhoneNumber(graphene.Mutation):
+    """Mutation to create a user with a phone number"""
     class Arguments:
         username = graphene.String(required=True)
         email = graphene.String(required=True)
@@ -112,6 +118,7 @@ class CreateUserWithPhoneNumber(graphene.Mutation):
         return CreateUserWithPhoneNumber(user=user, phone_number=phone)
 
 class AddPhoneNumber(graphene.Mutation):
+    """Mutation to add a phone number to the current user"""
     class Arguments:
         number = graphene.String(required=True)
         country_code = graphene.String(required=True)
@@ -127,29 +134,32 @@ class AddPhoneNumber(graphene.Mutation):
         return AddPhoneNumber(phone_number=phone)
 
 class RemovePhoneNumber(graphene.Mutation):
+    """Mutation to remove a phone number from the current user"""
     class Arguments:
-        phone_id = graphene.Int(required=True)
+        phone_id = graphene.ID(required=True)
         
-    phone_id = graphene.Int()
+    success = graphene.Boolean()
     
     @login_required
     def mutate(self, info, phone_id):
+        id = Node.from_global_id(phone_id)
         user = info.context.user
-        phone = PhoneNumber.objects.get(pk=phone_id)
+        phone = PhoneNumber.objects.get(pk=id)
         if phone.user != user:
             raise PermissionDenied('You are not authorized to delete this phone number')
         phone.delete()
-        return RemovePhoneNumber(phone_id=phone_id)
+        return RemovePhoneNumber(success=True)
 
 class AuthMutation(graphene.ObjectType):
-    login = ObtainJSONWebToken.Field()
-    refresh_token = Refresh.Field()
-    verify_token = Verify.Field()
-    revoke_token = Revoke.Field()
-    create_user = CreateUserWithPhoneNumber.Field()
-    add_phone_number = AddPhoneNumber.Field()
-    remove_phone_number = RemovePhoneNumber.Field()
-    update_user = UpdateUser.Field()
-    change_password = ChangePassword.Field()
-    delete_user = DeleteUser.Field()
+    """The Auth Mutation for the GraphQL API"""
+    login = ObtainJSONWebToken.Field(description="Login to the API. Returns a token")
+    refresh_token = Refresh.Field(description="Refresh the token")
+    verify_token = Verify.Field(description="Verify the token")
+    revoke_token = Revoke.Field(description="Revoke the token")
+    create_user = CreateUserWithPhoneNumber.Field(description="Create a user with a phone number")
+    add_phone_number = AddPhoneNumber.Field(description="Add a phone number to the current user")
+    remove_phone_number = RemovePhoneNumber.Field(description="Remove a phone number from the current user")
+    update_user = UpdateUser.Field(description="Update the current user's data")
+    change_password = ChangePassword.Field(description="Change the current user's password")
+    delete_user = DeleteUser.Field(description="Delete the current user")
 
