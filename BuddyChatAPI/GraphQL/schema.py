@@ -62,12 +62,11 @@ class Subscription(graphene.ObjectType):
         chat_message: ChatMessage = await database_sync_to_async(lambda: chat_messages.first())()
         await database_sync_to_async(lambda: chat_message.message)()
         chat: Chat = await database_sync_to_async(lambda: chat_message.chat)()
-        while True:
-            yield {
-                'chat': chat,
-                'chat_message': chat_message,
-            }
-            await asyncio.sleep(0.5)
+        yield {
+            'chat': chat,
+            'chat_message': chat_message,
+        }
+            
             
     
 schema = graphene.Schema(query=Query, mutation=Mutation, subscription=Subscription)

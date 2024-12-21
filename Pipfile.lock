@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "41cf4decd2a211dcf3c30dae22a6ac11f3157e9ae20cf6eda7187adf5b0af04a"
+            "sha256": "3e3be33114d472754121293077064c4ab47952c9507c2b12b3f5aa2789c0931e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -233,6 +233,15 @@
             "index": "pypi",
             "markers": "python_version >= '3.6'",
             "version": "==0.4.0"
+        },
+        "django-ratelimit": {
+            "hashes": [
+                "sha256:555943b283045b917ad59f196829530d63be2a39adb72788d985b90c81ba808b",
+                "sha256:d047a31cf94d83ef1465d7543ca66c6fc16695559b5f8d814d1b51df15110b92"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==4.1.0"
         },
         "graphene": {
             "hashes": [

@@ -20,8 +20,12 @@ from graphene_django.views import GraphQLView
 from django.views.decorators.csrf import csrf_exempt
 from BuddyChatAPI.GraphQL.depth_middleware import depth_middleware
 from graphql_jwt.middleware import JSONWebTokenMiddleware
+from django_ratelimit.decorators import ratelimit
 
+@ratelimit(key='ip', rate='10/m', method='POST')
+def graphql_view(request):
+    return GraphQLView.as_view(graphiql=True, middleware=[depth_middleware, JSONWebTokenMiddleware()])(request)
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('graphql', csrf_exempt(GraphQLView.as_view(graphiql=True, middleware=[depth_middleware, JSONWebTokenMiddleware()]))),
+    path('graphql', csrf_exempt(graphql_view)),
 ]

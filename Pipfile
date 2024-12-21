@@ -14,6 +14,7 @@ bleach = "*"
 django-graphql-jwt = "*"
 django-allauth = "*"
 channels = {extras = ["daphne"], version = "*"}
+django-ratelimit = "*"
 
 [dev-packages]
 
