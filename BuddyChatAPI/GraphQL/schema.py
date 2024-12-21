@@ -21,18 +21,15 @@ class Query(graphene.ObjectType):
     chat = graphene.Field(ChatType, id=graphene.ID())
     group = graphene.Field(UserGroupMemberCopyType, id=graphene.ID())
     user = graphene.Field(CustomUserType, id=graphene.ID())
-    
-    def resolve_users(self, info, **kwargs):
-        return CustomUser.objects.all()
-    
+        
     @login_required
     def resolve_chats(self, info, **kwargs):
-        return Chat.objects.filter(user=info.context.user)
+        return Chat.objects.filter(user=info.context.user).select_related('user', 'other_user').prefetch_related('chat_messages__message__sender__phone_numbers')
     
     @login_required
     def resolve_groups(self, info, **kwargs):
         group_member = GroupMember.objects.filter(member=info.context.user)
-        user_groups = UserGroupMemberCopy.objects.filter(member__in=group_member)
+        user_groups = UserGroupMemberCopy.objects.filter(member__in=group_member).select_related('member__user_group__created_by', 'member__member').prefetch_related('member__user_group__members__member__phone_numbers')
         return user_groups
     
     @login_required
