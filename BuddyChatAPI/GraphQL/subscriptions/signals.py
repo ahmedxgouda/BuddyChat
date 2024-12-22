@@ -88,6 +88,7 @@ def broadcast_unsent_message(sender, instance, is_chat, **kwargs):
 
 @receiver(on_message_deleted)
 def broadcast_deleted_message(sender, message_id, is_chat, chat_id, username, **kwargs):
+    # TODO: Fix this function to broadcast the deleted message
     operation, message_holder, message_type, chat_type, _, chat_key = define_message_variables(is_chat, None, 'DELETED', message_id)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
