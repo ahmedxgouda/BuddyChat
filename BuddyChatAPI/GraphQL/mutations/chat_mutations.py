@@ -7,6 +7,8 @@ from ..types import ChatType, ChatMessageType
 import bleach
 from django.utils import timezone
 from graphene.relay.node import Node
+from ..subscriptions.signals import signal
+from django.db.models.signals import ModelSignal
 
 class CreateChat(graphene.Mutation):
     """A mutation to create a chat for each user"""
@@ -71,6 +73,7 @@ class CreateChatMessage(graphene.Mutation):
         receiver_chat_message.save()
         receiver_chat.last_message = receiver_chat_message
         receiver_chat.save()
+        ModelSignal.send(signal, sender=ChatMessage, instance=receiver_chat_message, created=True)
         return CreateChatMessage(chat_message=chat_message)
     
 class DeleteChat(graphene.Mutation):

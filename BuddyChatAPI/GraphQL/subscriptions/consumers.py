@@ -36,14 +36,14 @@ class MainConsumer(AsyncWebsocketConsumer):
         if message_type == 'connection_init':
             await self.send(text_data=json.dumps({'type': 'connection_ack'}))
         elif message_type == 'subscribe':
-            subscription_id = text_data_json.get('id')
+            self.subscription_id = text_data_json.get('id')
             query = text_data_json.get('payload').get('query')
             variables = text_data_json.get('payload').get('variables')
             result = self.execute_query(query, variables)
             async for item in result:
                 await self.send(text_data=json.dumps({
                     'type': 'next',
-                    'id': subscription_id,
+                    'id': self.subscription_id,
                     'payload': item.data
                 }))
 
@@ -55,13 +55,11 @@ class MainConsumer(AsyncWebsocketConsumer):
         result = await schema.subscribe(query, variables, context_value={'user': self.user})
         async for item in result:
             yield item
-            
-    async def chat_message(self, event):
+      
+    async def broadcast(self, event):
         await self.send(text_data=json.dumps({
             'type': 'next',
-            'message': event['message'],
-            'chat_id': event['chat_id']
+            'id': self.subscription_id,
+            'payload': event
         }))
-        print('Message sent from consumer')
-        print(f'From consumer: {self.group_name}')
     
