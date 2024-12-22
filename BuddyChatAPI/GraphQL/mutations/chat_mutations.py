@@ -180,11 +180,12 @@ class DeleteChatMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_message_id):
-        chat_message = Node.get_node_from_global_id(info, chat_message_id)
+        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
         validate_delete_chat_message(chat_message, info.context.user.id)
         chat = chat_message.chat
         last_message_id = chat.last_message.id
         chat_message_id = chat_message.id
+        chat_id = chat.id
         chat_message.delete()
         
         # If the message being deleted is the last message in the chat, update the last_message field of the chat
@@ -193,7 +194,7 @@ class DeleteChatMessage(graphene.Mutation):
             chat.last_message = last_message
             chat.save()
         
-        ModelSignal.send(on_message_deleted, sender=ChatMessage, message_id=chat_message_id, is_chat=True, chat_id=chat.id, username=info.context.user.username)
+        ModelSignal.send(on_message_deleted, sender=ChatMessage, message_id=chat_message_id, is_chat=True, chat_id=chat_id, username=info.context.user.username)
         return DeleteChatMessage(success=True)
 
 class SetChatArchived(graphene.Mutation):
