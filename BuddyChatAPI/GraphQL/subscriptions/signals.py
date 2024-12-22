@@ -4,9 +4,10 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from graphene.relay import Node
 
-on_chat_message_created = ModelSignal(use_caching=True)
+on_message_created = ModelSignal(use_caching=True)
 on_message_updated = ModelSignal(use_caching=True)
-on_chat_message_deleted = ModelSignal(use_caching=True)
+on_message_deleted = ModelSignal(use_caching=True)
+on_message_unsent = ModelSignal(use_caching=True)
 on_notification_created = ModelSignal(use_caching=True)
 on_message_read = ModelSignal(use_caching=True)
 on_chat_deleted = ModelSignal(use_caching=True)
@@ -25,22 +26,23 @@ def define_variables(is_chat, instance, operation_suffix, is_deleted_chat=False)
         
     return operation, message_holder, message_type, chat_type, chat_id, chat_key
 
-def define_message_variables(is_chat, instance, operation_suffix) -> tuple[str, str, str, str, int, str]:
+def define_message_variables(is_chat, instance, operation_suffix, message_id=None) -> tuple[str, str, str, str, int, str]:
     if is_chat:
         operation = f'CHAT_MESSAGE_{operation_suffix}'
         message_holder = 'chatMessage'
         message_type = 'ChatMessageType'
         chat_type = 'ChatType'
         chat_key = 'chat'
-        chat_id = instance.chat.id
+        if instance:
+            chat_id = instance.chat.id
     else:
         operation = f'GROUP_MESSAGE_{operation_suffix}'
         message_holder = 'groupMessage'
         message_type = 'GroupMessageType'
         chat_type = 'UserGroupMemberCopyType'
         chat_key = 'groupCopy'
-        chat_id = instance.user_group_copy.id
-        
+        if instance:
+            chat_id = instance.user_group_copy.id        
     return operation, message_holder, message_type, chat_type, chat_id, chat_key
 
 # A generic function to broadcast a message eihther created, updated
@@ -72,7 +74,7 @@ def broadcast_message(sender, instance, is_chat, operation_suffix, add_message_d
         }
     )
 
-@receiver(on_chat_message_created)
+@receiver(on_message_created)
 def broadcast_created_message(sender, instance, is_chat, **kwargs):
     broadcast_message(sender, instance, is_chat, 'CREATED', add_message_details=True)
     
@@ -80,10 +82,28 @@ def broadcast_created_message(sender, instance, is_chat, **kwargs):
 def broadcast_updated_message(sender, instance, is_chat, **kwargs):
     broadcast_message(sender, instance, is_chat, 'UPDATED', add_message_details=True)
     
-@receiver(on_chat_message_deleted)
-def broadcast_deleted_message(sender, instance, is_chat, **kwargs):
-    broadcast_message(sender, instance, is_chat, 'DELETED')
+@receiver(on_message_unsent)
+def broadcast_unsent_message(sender, instance, is_chat, **kwargs):
+    broadcast_message(sender, instance, is_chat, 'UNSENT')
 
+@receiver(on_message_deleted)
+def broadcast_deleted_message(sender, message_id, is_chat, chat_id, username, **kwargs):
+    operation, message_holder, message_type, chat_type, _, chat_key = define_message_variables(is_chat, None, 'DELETED', message_id)
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'user_{username}',
+        {
+            'type': 'broadcast',
+            'operation': operation,
+            message_holder: {
+                'id': Node.to_global_id(message_type, message_id),
+                chat_key: {
+                    'id': Node.to_global_id(chat_type, chat_id),
+                }
+            }
+        }
+    )
+    
 @receiver(on_message_read)
 def broadcast_read_message(sender, instance, is_chat, **kwargs):
     broadcast_message(sender, instance, is_chat, 'READ')

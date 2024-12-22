@@ -7,7 +7,7 @@ from ..types import ChatType, ChatMessageType
 import bleach
 from django.utils import timezone
 from graphene.relay.node import Node
-from ..subscriptions.signals import on_chat_message_created, on_chat_message_deleted, on_message_updated, on_notification_created, on_chat_deleted, on_message_read
+from ..subscriptions.signals import on_message_created, on_message_deleted, on_message_updated, on_notification_created, on_chat_deleted, on_message_read, on_message_unsent
 from django.db.models.signals import ModelSignal
 
 class CreateChat(graphene.Mutation):
@@ -73,8 +73,8 @@ class CreateChatMessage(graphene.Mutation):
         receiver_chat_message.save()
         receiver_chat.last_message = receiver_chat_message
         receiver_chat.save()
-        ModelSignal.send(on_chat_message_created, sender=ChatMessage, instance=chat_message)
-        ModelSignal.send(on_chat_message_created, sender=ChatMessage, instance=receiver_chat_message)
+        ModelSignal.send(on_message_created, sender=ChatMessage, instance=chat_message, is_chat=True)
+        ModelSignal.send(on_message_created, sender=ChatMessage, instance=receiver_chat_message, is_chat=True)
         ModelSignal.send(on_notification_created, sender=Notification, instance=notification)
         return CreateChatMessage(chat_message=chat_message)
     
@@ -167,8 +167,8 @@ class UnsendChatMessage(graphene.Mutation):
             other_user_chat.last_message = last_message
             other_user_chat.save()
         
-        ModelSignal.send(on_chat_message_deleted, sender=ChatMessage, instance=chat_message)
-        ModelSignal.send(on_chat_message_deleted, sender=ChatMessage, instance=other_user_chat_message)
+        ModelSignal.send(on_message_unsent, sender=ChatMessage, instance=chat_message, is_chat=True)
+        ModelSignal.send(on_message_unsent, sender=ChatMessage, instance=other_user_chat_message, is_chat=True)
         return UnsendChatMessage(success=True)
 
 class DeleteChatMessage(graphene.Mutation):
@@ -193,7 +193,7 @@ class DeleteChatMessage(graphene.Mutation):
             chat.last_message = last_message
             chat.save()
         
-        ModelSignal.send(on_chat_message_deleted, sender=ChatMessage, instance=chat_message)
+        ModelSignal.send(on_message_deleted, sender=ChatMessage, message_id=chat_message_id, is_chat=True, chat_id=chat.id, username=info.context.user.username)
         return DeleteChatMessage(success=True)
 
 class SetChatArchived(graphene.Mutation):
