@@ -62,4 +62,4 @@ class MainConsumer(AsyncWebsocketConsumer):
             'id': self.subscription_id,
             'payload': event
         }))
-    
+        

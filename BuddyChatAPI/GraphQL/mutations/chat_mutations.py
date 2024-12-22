@@ -2,12 +2,12 @@ import graphene
 from graphql_jwt.decorators import login_required
 from ..validators import validate_chat_user, validate_update_chat_message, validate_delete_chat_message, validate_unsend_chat_message, validate_chat_member
 from ..helpers import create_message
-from ...models import Chat, ChatMessage, Notification
+from ...models import Chat, ChatMessage, Notification, Message
 from ..types import ChatType, ChatMessageType
 import bleach
 from django.utils import timezone
 from graphene.relay.node import Node
-from ..subscriptions.signals import signal
+from ..subscriptions.signals import on_chat_message_created, on_chat_message_deleted, on_message_updated, on_notification_created, on_chat_deleted, on_message_read
 from django.db.models.signals import ModelSignal
 
 class CreateChat(graphene.Mutation):
@@ -73,7 +73,9 @@ class CreateChatMessage(graphene.Mutation):
         receiver_chat_message.save()
         receiver_chat.last_message = receiver_chat_message
         receiver_chat.save()
-        ModelSignal.send(signal, sender=ChatMessage, instance=receiver_chat_message, created=True)
+        ModelSignal.send(on_chat_message_created, sender=ChatMessage, instance=chat_message)
+        ModelSignal.send(on_chat_message_created, sender=ChatMessage, instance=receiver_chat_message)
+        ModelSignal.send(on_notification_created, sender=Notification, instance=notification)
         return CreateChatMessage(chat_message=chat_message)
     
 class DeleteChat(graphene.Mutation):
@@ -89,6 +91,7 @@ class DeleteChat(graphene.Mutation):
         validate_chat_user(chat, info.context.user)
         for chat_message in chat.chat_messages.all():
             chat_message.delete()
+        ModelSignal.send(on_chat_deleted, sender=Chat, instance=chat, is_chat=True)
         return DeleteChat(success=True)
     
 class UpdateChatMessage(graphene.Mutation):
@@ -105,6 +108,11 @@ class UpdateChatMessage(graphene.Mutation):
         validate_update_chat_message(chat_message, info.context.user.id)
         chat_message.message.content = bleach.clean(content)
         chat_message.message.save()
+        chat_message.message.updated_at = timezone.now()
+        receiver_chat = Chat.objects.get(user=chat_message.chat.other_user, other_user=chat_message.chat.user)
+        receiver_chat_message = ChatMessage.objects.get(chat=receiver_chat, message=chat_message.message)
+        ModelSignal.send(on_message_updated, sender=Message, instance=chat_message, is_chat=True)
+        ModelSignal.send(on_message_updated, sender=Message, instance=receiver_chat_message, is_chat=True)
         return UpdateChatMessage(chat_message=chat_message)
 
 class SetChatMessageAsRead(graphene.Mutation):
@@ -119,6 +127,7 @@ class SetChatMessageAsRead(graphene.Mutation):
         chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
         chat_message.message.read_at = timezone.now()
         chat_message.message.save()
+        ModelSignal.send(on_message_read, sender=Message, instance=chat_message, is_chat=True)
         return SetChatMessageAsRead(chat_message=chat_message)
 
 class UnsendChatMessage(graphene.Mutation):
@@ -158,6 +167,8 @@ class UnsendChatMessage(graphene.Mutation):
             other_user_chat.last_message = last_message
             other_user_chat.save()
         
+        ModelSignal.send(on_chat_message_deleted, sender=ChatMessage, instance=chat_message)
+        ModelSignal.send(on_chat_message_deleted, sender=ChatMessage, instance=other_user_chat_message)
         return UnsendChatMessage(success=True)
 
 class DeleteChatMessage(graphene.Mutation):
@@ -182,6 +193,7 @@ class DeleteChatMessage(graphene.Mutation):
             chat.last_message = last_message
             chat.save()
         
+        ModelSignal.send(on_chat_message_deleted, sender=ChatMessage, instance=chat_message)
         return DeleteChatMessage(success=True)
 
 class SetChatArchived(graphene.Mutation):
