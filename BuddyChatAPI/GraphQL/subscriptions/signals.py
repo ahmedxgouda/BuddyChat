@@ -16,11 +16,6 @@ on_group_removed = ModelSignal(use_caching=True)
 on_member_added = ModelSignal(use_caching=True)
 on_member_removed = ModelSignal(use_caching=True)
 
-# TODO: Implement a signal for adding a user to a group
-# TODO: Implement a signal for removing a user from a group
-# TODO: Implement a signal for updating a user's group membershipW
-# TODO: Implement a signal for updating the group's details
-
 # Helper function to define the operation, message_holder, message_type, chat_type, and chat_id based on the chat type
 def define_variables(instance, operation_suffix, is_chat=False, is_message=False) -> tuple[str, str, str, str, int, str]:
     if not is_message:

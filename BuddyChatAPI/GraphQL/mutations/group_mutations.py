@@ -10,7 +10,6 @@ from graphene.relay import Node
 from ..subscriptions.signals import on_message_created, on_message_updated, on_message_deleted, on_message_unsent, on_notification_created, on_chat_deleted, on_group_updated, on_group_removed, on_member_added, on_member_removed
 from django.db.models.signals import ModelSignal
 
-# TODO: Send signals
 class CreateGroup(graphene.Mutation):
     """A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator"""
     class Arguments:
