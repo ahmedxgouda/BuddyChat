@@ -3,7 +3,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [Model UML Diagram](#model-uml-diagram)
+- [UML Model Diagram](#uml-model-diagram)
 - [Endpoint](#endpoint)
 - [Queries](#queries)
 - [Mutations](#mutations)
@@ -75,7 +75,7 @@ This is the API documentation for the BuddyChat API. The API is built with Djang
 - Real-time chat messages
 - Copy of messages for each user which leads to the ability to delete messages for each user
 
-## Model UML Diagram
+## UML Model Diagram
 
 ![Model Diagram](./model.drawio.png)
 
