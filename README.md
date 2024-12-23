@@ -8,6 +8,10 @@
 - [Queries](#queries)
 - [Mutations](#mutations)
 - [Subscriptions](#subscriptions)
+  - [Approach](#approach)
+  - [Message Structure](#message-structure)
+  - [Message Operations Table](#message-operations-table)
+  - [Example Message](#example-message)
 - [Types](#types)
   - [CustomUserType](#customusertype)
   - [PhoneNumberType](#phonenumbertype)
@@ -33,14 +37,14 @@
   - [UnsendGroupMessage](#unsendgroupmessage)
   - [RemoveGroupMember](#removegroupmember)
   - [LeaveGroup](#leavegroup)
-  - [RemoveGroup](#removegroup)
+  - [RemoveGroupPermanently](#removegrouppermanently)
   - [SetArchiveGroup](#setarchivegroup)
   - [SetNotificationAsRead](#setnotificationasread)
   - [CreateUser](#createuser)
   - [UpdateUser](#updateuser)
   - [ChangePassword](#changepassword)
   - [DeleteUser](#deleteuser)
-  - [CreateUserWithPhoneNumber](#createuserwithphonenumber)
+  - [CreateUser](#createuser)
   - [AddPhoneNumber](#addphonenumber)
   - [RemovePhoneNumber](#removephonenumber)
   - [CreateChat](#createchat)
@@ -54,6 +58,11 @@
   - [SetChatMessageAsRead](#setchatmessageasread)
 - [Subscription Types](#subscription-types)
   - [SubscriptionType](#subscriptiontype)
+- [Other Features](#other-features)
+  - [Throttling](#throttling)
+  - [Pagination](#pagination)
+  - [Filtering](#filtering)
+- [Conclusion](#conclusion)
 
 ## Overview
 
@@ -76,53 +85,126 @@ The API endpoint is `/graphql`.
 
 ## Queries
 
-- users: The users in the system
-- chats: The chats for the current user
-- groups: The group copies for the current user
-- notifications: The notifications for the current user
-- chat: Resolve a chat for the current user
-- group: Resolve a group copy for the current user
-- user: Resolve a user
+- `users`: The users in the system
+- `chats`: The chats for the current user
+- `groups`: The group copies for the current user
+- `notifications`: The notifications for the current user
+- `chat`: Resolve a chat for the current user
+- `group`: Resolve a group copy for the current user
+- `user`: Resolve a user
 
 ## Mutations
 
-- set_notification_read: Set a notification as read
-- login: Login to the API. Returns a token
-- refresh_token: Refresh the token
-- verify_token: Verify the token
-- revoke_token: Revoke the token
-- create_user: Create a user with a phone number
-- add_phone_number: Add a phone number to the current user
-- remove_phone_number: Remove a phone number from the current user
-- update_user: Update the current user's data
-- change_password: Change the current user's password
-- delete_user: Delete the current user
-- create_group: A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator
-- create_group_message: A mutation to create a group message. A group message is created for each group member, and a notification is created for each group member
-- create_group_member: A mutation to add a member to a group
-- change_admin: A mutation to change the admin status of a group member
-- update_group: A mutation to update a group
-- delete_group: A mutation to delete a group. Messages are deleted for the group copy of the current user
-- update_group_message: A mutation to update a group message
-- delete_group_message: A mutation to delete a group message. Deletes the message for the group copy of the current user
-- unsend_group_message: A mutation to unsend a group message. Deletes the message for all group members
-- remove_group_member: A mutation to remove a member from a group
-- leave_group: A mutation to leave a group
-- remove_group_permanently: A mutation to remove a group permanently
-- set_archive_group: A mutation to archive a group
-- create_chat: A mutation to create two chat copies for two users
-- create_self_chat: A mutation to create a chat copy for the current user
-- create_chat_message: A mutation to create a chat message. A chat message is created for each user, and a notification is created for the other user
-- update_chat_message: A mutation to update a chat message
-- delete_chat_message: A mutation to delete a chat message. Deletes the message for the chat copy of the current user
-- unsend_chat_message: A mutation to unsend a chat message. Deletes the message for both chat copies
-- delete_chat: A mutation to delete a chat. Messages are deleted for the chat copy of the current user
-- set_archive_chat: A mutation to archive or unarchive a chat
-- set_chat_message_as_read: A mutation to set a chat message as read
+- `setNotificationRead`: Set a notification as read
+- `login`: Login to the API. Returns a token
+- `refreshToken`: Refresh the token
+- `verifyToken`: Verify the token
+- `revokeToken`: Revoke the token
+- `createUser`: Create a user with a phone number
+- `addPhoneNumber`: Add a phone number to the current user
+- `removePhoneNumber`: Remove a phone number from the current user
+- `updateUser`: Update the current user's data
+- `changePassword`: Change the current user's password
+- `deleteUser`: Delete the current user
+- `createGroup`: A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator
+- `createGroupMessage`: A mutation to create a group message. A group message is created for each group member, and a notification is created for each group member
+- `createGroupMember`: A mutation to add a member to a group
+- `changeAdmin`: A mutation to change the admin status of a group member
+- `updateGroup`: A mutation to update a group
+- `deleteGroup`: A mutation to delete a group. Messages are deleted for the group copy of the current user
+- `updateGroupMessage`: A mutation to update a group message
+- `deleteGroupMessage`: A mutation to delete a group message. Deletes the message for the group copy of the current user
+- `unsendGroupMessage`: A mutation to unsend a group message. Deletes the message for all group members
+- `removeGroupMember`: A mutation to remove a member from a group
+- `leaveGroup`: A mutation to leave a group
+- `removeGroupPermanently`: A mutation to remove a group permanently
+- `setArchiveGroup`: A mutation to archive a group
+- `createChat`: A mutation to create two chat copies for two users
+- `createSelfChat`: A mutation to create a chat copy for the current user
+- `createChatMessage`: A mutation to create a chat message. A chat message is created for each user, and a notification is created for the other user
+- `updateChatMessage`: A mutation to update a chat message
+- `deleteChatMessage`: A mutation to delete a chat message. Deletes the message for the chat copy of the current user
+- `unsendChatMessage`: A mutation to unsend a chat message. Deletes the message for both chat copies
+- `deleteChat`: A mutation to delete a chat. Messages are deleted for the chat copy of the current user
+- `setArchiveChat`: A mutation to archive or unarchive a chat
+- `setChatMessageAsRead`: A mutation to set a chat message as read
 
 ## Subscriptions
 
-- subscription: The subscription for the chat messages
+### Approach
+
+- The API uses `Django Channels` with `signals` to send messages to the client. The messages which are sent are not much like `GraphQL` subscriptions. They are more like `WebSocket` messages. Because of `Graphene` limitations, I made a workaround to send messages like `WebSocket` messages. The subprotocol used is `graphql-transport-ws`.
+- The subscription is done by sending a `subscription` query to the API with the following structure:
+
+    ```graphql
+    subscription {
+        subscribe {
+            success
+        }
+    }
+    ```
+
+- This query is done to subscribe to the messages. The `success` field returns `True` and it is not used. The subscription is done by sending a `next` message to the client with the message payload.
+
+### Message Structure
+
+- All messages are sent as `next` messages and contain the field `id` which represents the subscription id.
+- The message contains `payload` which contains the actual message.
+- The `payload` message is an object with the following properties:
+  - `type`: The type of the message. It is always `broadcast`.
+  - `operation`: The operation which is done.
+  - `payload`: The actual payload of the message.
+
+### Message Operations Table
+
+| Operation                | Description                                      |
+|--------------------------|--------------------------------------------------|
+| CHAT_MESSAGE_CREATED     | A new chat message has been created              |
+| CHAT_MESSAGE_UPDATED     | An existing chat message has been updated        |
+| CHAT_MESSAGE_DELETED     | A chat message has been deleted                  |
+| CHAT_MESSAGE_UNSENT      | A chat message has been unsent                   |
+| CHAT_MESSAGE_READ        | A chat message has been read                     |
+| CHAT_DELETED             | A chat has been deleted                          |
+| GROUP_MESSAGE_CREATED    | A new group message has been created             |
+| GROUP_MESSAGE_UPDATED    | An existing group message has been updated       |
+| GROUP_MESSAGE_DELETED    | A group message has been deleted                 |
+| GROUP_MESSAGE_UNSENT     | A group message has been unsent                  |
+| GROUP_MESSAGE_READ       | A group message has been read                    |
+| GROUP_DELETED            | A group has been deleted                         |
+| GROUP_UPDATED            | A group has been updated                         |
+| GROUP_PERMANENTLY_REMOVED| A group has been permanently removed             |
+| NOTIFICATION_CREATED     | A new notification has been created              |
+| MEMBER_ADDED             | A new member has been added to a group           |
+| MEMBER_REMOVED           | A member has been removed from a group           |
+| MEMBER_LEFT              | A member has left a group                        |
+
+### Example Message
+
+```json
+{
+    "type": "next",
+    "id": "b7455cd0-2363-481a-913e-74be16be060e",
+    "payload": {
+        "type": "broadcast",
+        "operation": "CHAT_MESSAGE_CREATED",
+        "payload": {
+            "chatMessage": {
+                "id": "GQo6U2hhdHRlY2g6MjI=",
+                "message": {
+                    "id": "GQo6TWVzc2FnZVR5cGU6MjA=",
+                    "content": "Hello",
+                    "sender": {
+                        "id": "GQo6VXNlcjp1c2VyMQ=="
+                    }
+                },
+                "chat": {
+                    "id": "GQo6Q2hhdDpjaGF0MQ=="
+                }
+            }
+        }
+    }
+}
+```
 
 ## Types
 
@@ -168,8 +250,7 @@ input PhoneNumberInputType {
 type MessageType {
     id: ID!
     content: String!
-    createdAt: DateTime!
-    updatedAt: DateTime!
+    readAt: DateTime
 }
 ```
 
@@ -180,8 +261,10 @@ Description: The root message type which is the dependent type for the chat mess
 ```graphql
 type ChatType {
     id: ID!
+    user: CustomUserType!
+    otherUser: CustomUserType!
     archived: Boolean!
-    messages: [ChatMessageType]
+    chat_messages: [ChatMessageType]
 }
 ```
 
@@ -192,9 +275,8 @@ Description: The chat type. Each user has a chat copy for each other user they h
 ```graphql
 type ChatMessageType {
     id: ID!
-    content: String!
-    createdAt: DateTime!
-    updatedAt: DateTime!
+    message: MessageType!
+    chat: ChatType!
 }
 ```
 
@@ -205,11 +287,9 @@ Description: The chat message type. It contains the chat message information.
 ```graphql
 type UserGroupType {
     id: ID!
-    title: String!
-    
-Description: String!
+    title: String!  
+    description: String!
     members: [GroupMemberType]
-    messages: [GroupMessageType]
 }
 ```
 
@@ -220,9 +300,8 @@ Description: The root user group type. It contains the main information. GroupMe
 ```graphql
 type GroupMessageType {
     id: ID!
-    content: String!
-    createdAt: DateTime!
-    updatedAt: DateTime!
+    message: MessageType!
+    group_copy: UserGroupMemberCopyType!
 }
 ```
 
@@ -236,6 +315,7 @@ type GroupMemberType {
     user: CustomUserType!
     group: UserGroupType!
     isAdmin: Boolean!
+    joinedAt: DateTime!
 }
 ```
 
@@ -256,10 +336,8 @@ type AttachmentType {
 ```graphql
 type NotificationType {
     id: ID!
-    content: String!
-    isRead: Boolean!
-    createdAt: DateTime!
-    updatedAt: DateTime!
+    message: MessageType!
+    readAt: DateTime
 }
 ```
 
@@ -268,9 +346,9 @@ type NotificationType {
 ```graphql
 type UserGroupMemberCopyType {
     id: ID!
-    user: CustomUserType!
-    group: UserGroupType!
+    member: GroupMemberType!
     isArchived: Boolean!
+    group_messages: [GroupMessageType]
 }
 ```
 
@@ -292,7 +370,7 @@ Description: A mutation to create a group. The creator is automatically added as
 
 ```graphql
 type CreateGroupMessage {
-    message: MessageType
+    message: GroupMessageType
 }
 ```
 
@@ -388,10 +466,10 @@ type LeaveGroup {
 
 Description: A mutation to leave a group.
 
-### RemoveGroup
+### RemoveGroupPermanently
 
 ```graphql
-type RemoveGroup {
+type RemoveGroupPermanently {
     success: Boolean
 }
 ```
@@ -417,16 +495,6 @@ type SetNotificationAsRead {
 ```
 
 Description: A mutation to set a notification as read.
-
-### CreateUser
-
-```graphql
-type CreateUser {
-    user: CustomUserType
-}
-```
-
-Description: Mutation to create a user. Deprecated.
 
 ### UpdateUser
 
@@ -458,10 +526,10 @@ type DeleteUser {
 
 Description: Mutation to delete the current user.
 
-### CreateUserWithPhoneNumber
+### CreateUser
 
 ```graphql
-type CreateUserWithPhoneNumber {
+type CreateUser {
     user: CustomUserType
     phoneNumber: PhoneNumberType
 }
@@ -586,9 +654,26 @@ Description: Mutation to set a chat message as read.
 
 ```graphql
 type SubsctiptionType {
-    chat: ChatType
-    chatMessage: ChatMessageType
+    success: Boolean
 }
 ```
 
 Description: The subscription type.
+
+## Other Features
+
+### Throttling
+
+To ensure fair usage and prevent abuse, the BuddyChat API implements throttling. This limits the number of requests a user can make to the API within a certain time frame. If the limit is exceeded, the API will return a `403` error response.
+
+### Pagination
+
+The BuddyChat API supports pagination for queries that return lists of items. This helps to manage large datasets by breaking them into smaller, more manageable chunks. Pagination is implemented using the `first` and `after` arguments for forward pagination, and `last` and `before` arguments for backward pagination. The API returns a `PageInfo` object that includes information about the current page and whether there are more pages available.
+
+### Filtering
+
+To provide more flexibility in querying data, the BuddyChat API supports filtering on various fields. Filters can be applied to queries to narrow down the results based on specific criteria. The available filters are documented for each query type.
+
+## Conclusion
+
+The BuddyChat API provides a comprehensive set of features for building a robust chat application. With support for user authentication, real-time messaging, group chats, notifications, and more, it offers a solid foundation for any chat-based application. The API is designed to be flexible and scalable, with features like throttling, pagination, and filtering to handle various use cases and ensure optimal performance. Whether you're building a simple chat app or a complex messaging platform, the BuddyChat API has you covered.
