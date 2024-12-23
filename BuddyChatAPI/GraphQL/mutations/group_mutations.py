@@ -8,6 +8,7 @@ from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupM
 from django.utils import timezone
 from graphene.relay import Node
 
+# TODO: Send signals
 class CreateGroup(graphene.Mutation):
     """A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator"""
     class Arguments:
