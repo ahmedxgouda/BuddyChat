@@ -45,6 +45,7 @@ class PhoneNumberType(DjangoObjectType):
     class Meta:
         model = PhoneNumber
         fields = "__all__"
+        interfaces = (graphene.relay.Node, )
 
 class PhoneNumberInputType(graphene.InputObjectType):
     number = graphene.String(required=True)
@@ -55,6 +56,7 @@ class MessageType(DjangoObjectType):
     class Meta:
         model = Message
         fields = "__all__"
+        interfaces = (graphene.relay.Node, )
         
 
 class ChatType(DjangoObjectType):
@@ -110,5 +112,4 @@ class UserGroupMemberCopyType(DjangoObjectType):
 
 class SubsctiptionType(graphene.ObjectType):
     """The subscription type"""
-    chat = graphene.Field(ChatType)
-    chat_message = graphene.Field(ChatMessageType)
+    success = graphene.Boolean()

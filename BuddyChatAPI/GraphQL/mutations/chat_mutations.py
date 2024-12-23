@@ -1,12 +1,12 @@
 import graphene
 from graphql_jwt.decorators import login_required
 from ..validators import validate_chat_user, validate_update_chat_message, validate_delete_chat_message, validate_unsend_chat_message, validate_chat_member
-from ..helpers import create_message
+from ..helpers import create_message, get_node_or_error
 from ...models import Chat, ChatMessage, Notification, Message
 from ..types import ChatType, ChatMessageType
 import bleach
 from django.utils import timezone
-from graphene.relay.node import Node
+
 from ..subscriptions.signals import on_message_created, on_message_deleted, on_message_updated, on_notification_created, on_chat_deleted, on_message_read, on_message_unsent
 from django.db.models.signals import ModelSignal
 
@@ -22,7 +22,7 @@ class CreateChat(graphene.Mutation):
     @login_required
     def mutate(self, info, other_user_id):
         user = info.context.user
-        other_user = Node.get_node_from_global_id(info, other_user_id)
+        other_user = get_node_or_error(info, other_user_id)
         chat = Chat.objects.create(user=user, other_user=other_user)
         chat.save()
         other_user_chat = Chat.objects.create(user=other_user, other_user=user)
@@ -51,7 +51,7 @@ class CreateChatMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_id, content):
-        chat: Chat = Node.get_node_from_global_id(info, chat_id)
+        chat: Chat = get_node_or_error(info, chat_id)
         sender_id = info.context.user.id
         validate_chat_member(chat, sender_id)
         message = create_message(sender_id, content)
@@ -87,7 +87,7 @@ class DeleteChat(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_id):
-        chat: Chat = Node.get_node_from_global_id(info, chat_id)
+        chat: Chat = get_node_or_error(info, chat_id)
         validate_chat_user(chat, info.context.user)
         for chat_message in chat.chat_messages.all():
             chat_message.delete()
@@ -104,7 +104,7 @@ class UpdateChatMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_message_id, content):
-        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
+        chat_message: ChatMessage = get_node_or_error(info, chat_message_id)
         validate_update_chat_message(chat_message, info.context.user.id)
         chat_message.message.content = bleach.clean(content)
         chat_message.message.save()
@@ -124,7 +124,7 @@ class SetChatMessageAsRead(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_message_id):
-        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
+        chat_message: ChatMessage = get_node_or_error(info, chat_message_id)
         chat_message.message.read_at = timezone.now()
         chat_message.message.save()
         ModelSignal.send(on_message_read, sender=Message, instance=chat_message, is_chat=True)
@@ -139,7 +139,7 @@ class UnsendChatMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_message_id):
-        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
+        chat_message: ChatMessage = get_node_or_error(info, chat_message_id)
         validate_unsend_chat_message(chat_message, info.context.user.id)
         chat = chat_message.chat
         other_user_chat = Chat.objects.get(user=chat.other_user, other_user=info.context.user)
@@ -180,7 +180,7 @@ class DeleteChatMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_message_id):
-        chat_message: ChatMessage = Node.get_node_from_global_id(info, chat_message_id)
+        chat_message: ChatMessage = get_node_or_error(info, chat_message_id)
         validate_delete_chat_message(chat_message, info.context.user.id)
         chat = chat_message.chat
         last_message_id = chat.last_message.id
@@ -207,7 +207,7 @@ class SetChatArchived(graphene.Mutation):
     
     @login_required
     def mutate(self, info, chat_id, archived):
-        chat = Node.get_node_from_global_id(info, chat_id)
+        chat = get_node_or_error(info, chat_id)
         validate_chat_user(chat, info.context.user)
         chat.archived = archived
         chat.save()

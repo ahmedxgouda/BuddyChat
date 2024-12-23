@@ -63,18 +63,12 @@ class Mutation(AuthMutation, GroupMutations, ChatMutations, graphene.ObjectType)
     
 class Subscription(graphene.ObjectType):
     """The Root Subscription for the GraphQL API"""
-    subscription = graphene.Field(SubsctiptionType, description="The subscription for the chat messages")
+    subscribe = graphene.Field(SubsctiptionType, description="The subscription for the API")
     
-    async def subscribe_subscription(root, info):
+    async def subscribe_subscribe(root, info):
         """Subscribes to the subscription"""
-        username = info.context['user']
-        chat_messages: ChatMessage = await database_sync_to_async(ChatMessage.objects.filter)(chat__user__username=username)
-        chat_message: ChatMessage = await database_sync_to_async(lambda: chat_messages.first())()
-        await database_sync_to_async(lambda: chat_message.message)()
-        chat: Chat = await database_sync_to_async(lambda: chat_message.chat)()
         yield {
-            'chat': chat,
-            'chat_message': chat_message,
+            'success': True
         }
             
             

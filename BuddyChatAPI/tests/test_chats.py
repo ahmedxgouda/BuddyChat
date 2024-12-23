@@ -252,8 +252,9 @@ class ChatTestCase(GraphQLTestCase):
         # Check if notification was created
         self.assertEqual(Notification.objects.count(), 1)
         notification = Notification.objects.first()
+        message_id = Node.to_global_id('MessageType', notification.message.id)
         self.assertEqual(notification.receiver.id, self.user2.id)
-        self.assertEqual(notification.message.id, int(content['data']['createChatMessage']['chatMessage']['message']['id']))
+        self.assertEqual(message_id, content['data']['createChatMessage']['chatMessage']['message']['id'])
         
     def test_create_chat_message_invalid_chat(self):
         chat_id = Node.to_global_id('ChatType', self.chat3.id)

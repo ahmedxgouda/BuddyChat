@@ -1,13 +1,12 @@
 import graphene
 import bleach
-from django.shortcuts import get_object_or_404
-from graphene.relay.node import Node
 from graphql_jwt.decorators import login_required
-from ..validators import validate_group_title, validate_group_message_sender, validate_admin, validate_message_content, validate_group_description, validate_group_message_member, validate_group_creator, validate_group_copy_member, validate_group_member
-from ..helpers import create_group_member, create_message
+from ..validators import validate_group_title, validate_group_message_sender, validate_admin, validate_message_content, validate_group_description, validate_group_creator, validate_group_copy_member, validate_group_member
+from ..helpers import create_group_member, create_message, get_node_or_error
 from ...models import UserGroup, GroupMember, GroupMessage, Notification, CustomUser, UserGroupMemberCopy
 from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupMemberCopyType, MessageType
 from django.utils import timezone
+from graphene.relay import Node
 
 class CreateGroup(graphene.Mutation):
     """A mutation to create a group. The creator is automatically added as an admin, and a group member copy is created for the creator"""
@@ -38,7 +37,7 @@ class CreateGroupMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id, content):
-        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
         group_member = group_copy.member
         user_group = group_copy.member.user_group
         sender_id = info.context.user.id
@@ -70,7 +69,7 @@ class CreateGroupMember(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id, member_id):
-        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
         user_group = group_copy.member.user_group
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
@@ -88,9 +87,9 @@ class ChangeAdmin(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id, member_id, is_admin):
-        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
         user_group = group_copy.member.user_group
-        group_member: GroupMember = Node.get_node_from_global_id(info, member_id)
+        group_member: GroupMember = get_node_or_error(info, member_id)
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
         validate_group_member(user_group, group_member)
@@ -110,7 +109,7 @@ class UpdateGroup(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id, title=None, description=None, group_image=None):
-        user_group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
         user_group = user_group_copy.member.user_group
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
@@ -137,7 +136,7 @@ class DeleteGroup(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id):
-        user_group_copy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group_copy = get_node_or_error(info, group_copy_id)
         validate_group_copy_member(user_group_copy, info.context.user)
         for group_message in user_group_copy.group_messages.all():
             group_message.delete()
@@ -153,7 +152,7 @@ class UpdateGroupMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_message_id, content):
-        group_message: GroupMessage = Node.get_node_from_global_id(info, group_message_id)
+        group_message: GroupMessage = get_node_or_error(info, group_message_id)
         group_member = group_message.user_group_copy.member
         validate_group_message_sender(group_member, group_message.message.sender.id)
         content = bleach.clean(content)
@@ -171,7 +170,7 @@ class DeleteGroupMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_message_id):
-        group_message = Node.get_node_from_global_id(info, group_message_id)
+        group_message = get_node_or_error(info, group_message_id)
         last_message_id = group_message.user_group_copy.last_message.id
         group_message.delete()
         if last_message_id == group_message.id:
@@ -188,7 +187,7 @@ class UnsendGroupMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_message_id):
-        group_message = Node.get_node_from_global_id(info, group_message_id)
+        group_message = get_node_or_error(info, group_message_id)
         group_member = group_message.user_group_copy.member
         validate_group_message_sender(group_member, group_message.message.sender.id)
         last_message_id = group_message.user_group_copy.last_message.message.id
@@ -214,11 +213,11 @@ class RemoveGroupMember(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id, member_id):
-        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
         user_group = group_copy.member.user_group
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
-        group_member: GroupMember = Node.get_node_from_global_id(info, member_id)
+        group_member: GroupMember = get_node_or_error(info, member_id)
         validate_group_member(user_group, group_member)
         group_member.delete()
         user_group.members_count -= 1
@@ -234,7 +233,7 @@ class LeaveGroup(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id):
-        group_copy: UserGroupMemberCopy = Node.get_node_from_global_id(info, group_copy_id)
+        group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
         user_group = group_copy.member.user_group
         group_member = user_group.members.get(member=info.context.user)
         group_member.delete()
@@ -251,7 +250,7 @@ class RemoveGroup(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id):
-        user_group_copy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group_copy = get_node_or_error(info, group_copy_id)
         user_group = user_group_copy.member.user_group
         validate_group_creator(user_group, info.context.user)
         user_group.delete()
@@ -267,7 +266,7 @@ class SetArchiveGroup(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id, is_archived):
-        user_group_copy = Node.get_node_from_global_id(info, group_copy_id)
+        user_group_copy = get_node_or_error(info, group_copy_id)
         validate_group_copy_member(user_group_copy, info.context.user)
         user_group_copy.is_archived = is_archived
         user_group_copy.save()

@@ -23,3 +23,8 @@ def create_message(sender_id, content):
     message.save()
     return message
 
+def get_node_or_error(info, node_id):
+    node = Node.get_node_from_global_id(info, node_id)
+    if not node:
+        raise ValueError(f"Could not resolve to a node with the global id of '{node_id}'")
+    return node

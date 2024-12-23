@@ -7,7 +7,7 @@ from django.utils import timezone
 import bleach
 from django.core.exceptions import PermissionDenied
 from graphql_jwt import ObtainJSONWebToken, Refresh, Verify, Revoke
-from graphene.relay import Node
+from ..helpers import get_node_or_error
 class CreateUser(graphene.Mutation):
     """Mutation to create a user. Deprecated"""
     class Arguments:
@@ -142,9 +142,8 @@ class RemovePhoneNumber(graphene.Mutation):
     
     @login_required
     def mutate(self, info, phone_id):
-        id = Node.from_global_id(phone_id)
+        phone = get_node_or_error(info, phone_id)
         user = info.context.user
-        phone = PhoneNumber.objects.get(pk=id)
         if phone.user != user:
             raise PermissionDenied('You are not authorized to delete this phone number')
         phone.delete()

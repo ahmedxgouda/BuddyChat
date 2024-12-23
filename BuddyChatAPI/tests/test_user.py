@@ -277,14 +277,14 @@ class UserTestCase(GraphQLTestCase):
         
     def test_remove_phone_number(self):
         query = '''
-            mutation RemovePhoneNumber($phone_id: Int!) {
+            mutation RemovePhoneNumber($phone_id: ID!) {
                 removePhoneNumber(phoneId: $phone_id) {
-                    phoneId
+                    success
                 }
             }
         '''
         phone = self.user1.phone_numbers.first()
-        phone_id = phone.id
+        phone_id = Node.to_global_id('PhoneNumberType', phone.id)
         response = self.query(
             query=query,
             variables={'phone_id': phone_id},
@@ -292,5 +292,5 @@ class UserTestCase(GraphQLTestCase):
         )
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['removePhoneNumber']['phoneId'], phone_id)
+        self.assertEqual(content['data']['removePhoneNumber']['success'], True)
         self.assertEqual(self.user1.phone_numbers.count(), 0)
