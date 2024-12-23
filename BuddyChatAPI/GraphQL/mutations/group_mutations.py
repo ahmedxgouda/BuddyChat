@@ -35,7 +35,7 @@ class CreateGroupMessage(graphene.Mutation):
         group_copy_id = graphene.ID()
         content = graphene.String()
         
-    message = graphene.Field(MessageType)
+    group_message = graphene.Field(GroupMessageType)
     
     @login_required
     def mutate(self, info, group_copy_id, content):
@@ -49,9 +49,13 @@ class CreateGroupMessage(graphene.Mutation):
         content = bleach.clean(content)
         validate_message_content(content)
         message = create_message(sender_id, content)
-        
+        user_group_message = GroupMessage.objects.create(message=message, user_group_copy=group_copy)
+        user_group_message.save()
+        ModelSignal.send(on_message_created, sender=GroupMessage, instance=user_group_message, is_chat=False)
         # Create group message for each group member - for deleting and unsending messages
         for group_member in user_group.members.all():
+            if group_member.member.id == sender_id:
+                continue
             group_member_copy = UserGroupMemberCopy.objects.get(member=group_member)
             group_message = GroupMessage.objects.create(message=message, user_group_copy=group_member_copy)
             group_message.save()
@@ -60,9 +64,8 @@ class CreateGroupMessage(graphene.Mutation):
             notification = Notification.objects.create(receiver=group_member.member, message=message)
             notification.save()
             ModelSignal.send(on_message_created, sender=GroupMessage, instance=group_message, is_chat=False)
-            if group_member.member.id != sender_id:
-                ModelSignal.send(on_notification_created, sender=Notification, instance=notification)
-        return CreateGroupMessage(message=message)
+            ModelSignal.send(on_notification_created, sender=Notification, instance=notification)
+        return CreateGroupMessage(group_message=user_group_message)
     
 class CreateGroupMember(graphene.Mutation):
     """A mutation to add a member to a group"""

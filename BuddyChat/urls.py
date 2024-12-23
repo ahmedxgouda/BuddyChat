@@ -20,7 +20,7 @@ from graphene_django.views import GraphQLView
 from django.views.decorators.csrf import csrf_exempt
 from django_ratelimit.decorators import ratelimit
 
-@ratelimit(key='ip', rate='15/m', method='POST')
+# @ratelimit(key='ip', rate='15/m', method='POST')
 def graphql_view(request):
     return GraphQLView.as_view(graphiql=True)(request)
 urlpatterns = [

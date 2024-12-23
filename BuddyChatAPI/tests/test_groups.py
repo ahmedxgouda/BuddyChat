@@ -136,13 +136,12 @@ class GroupTestCase(GraphQLTestCase):
         self.create_group_message_mutation = '''
             mutation CreateGroupMessage($groupCopyId: ID!, $content: String!) {
                 createGroupMessage(groupCopyId: $groupCopyId, content: $content) {
-                    message {
+                    groupMessage {
                         id
-                        content
-                        sender {
+                        message {
                             id
+                            content
                         }
-                    
                     }
                 }
             }
@@ -261,7 +260,7 @@ class GroupTestCase(GraphQLTestCase):
         self.group_messages_count += 4
         content = response.json()
         self.assertResponseNoErrors(response)
-        self.assertEqual(content['data']['createGroupMessage']['message']['content'], 'Hello from user1')
+        self.assertEqual(content['data']['createGroupMessage']['groupMessage']['message']['content'], 'Hello from user1')
         self.assertEqual(len(GroupMessage.objects.all()), self.group_messages_count)
         
         # Check if the notification was created
