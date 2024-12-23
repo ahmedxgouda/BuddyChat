@@ -58,6 +58,7 @@ def broadcast_message(instance, is_chat, operation_suffix, add_message_details=F
         message = {
             'id': Node.to_global_id('MessageType', instance.message.id),
             'content': instance.message.content,
+            'date': instance.message.date.isoformat(),
             'sender': {
                 'id': Node.to_global_id('CustomUserType', instance.message.sender.id)
             }
