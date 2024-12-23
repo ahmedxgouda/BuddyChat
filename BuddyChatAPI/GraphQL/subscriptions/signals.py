@@ -142,8 +142,9 @@ def broadcast_created_notification(instance, **kwargs):
 def broadcast_deleted_chat(instance, is_chat, **kwargs):
     operation, message_holder, message_type, chat_type, chat_id, chat_key = define_variables(instance, 'DELETED', is_chat)
     channel_layer = get_channel_layer()
+    username = instance.user.username if is_chat else instance.member.member.username
     async_to_sync(channel_layer.group_send)(
-        f'user_{instance.user.username}',
+        f'user_{username}',
         {
             'type': 'broadcast',
             'operation': operation,
