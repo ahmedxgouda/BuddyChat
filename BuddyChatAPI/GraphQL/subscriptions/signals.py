@@ -11,10 +11,14 @@ on_message_unsent = ModelSignal(use_caching=True)
 on_notification_created = ModelSignal(use_caching=True)
 on_message_read = ModelSignal(use_caching=True)
 on_chat_deleted = ModelSignal(use_caching=True)
+on_group_updated = ModelSignal(use_caching=True)
+on_group_removed = ModelSignal(use_caching=True)
+on_member_added = ModelSignal(use_caching=True)
+on_member_removed = ModelSignal(use_caching=True)
 
 # TODO: Implement a signal for adding a user to a group
 # TODO: Implement a signal for removing a user from a group
-# TODO: Implement a signal for updating a user's group membership
+# TODO: Implement a signal for updating a user's group membershipW
 # TODO: Implement a signal for updating the group's details
 
 # Helper function to define the operation, message_holder, message_type, chat_type, and chat_id based on the chat type
@@ -52,7 +56,7 @@ def define_message_variables(is_chat_message, instance, operation_suffix) -> tup
     return operation, message_holder, message_type, chat_type, chat_id, chat_key
 
 # A generic function to broadcast a message eihther created, updated
-def broadcast_message(sender, instance, is_chat, operation_suffix, add_message_details=False, **kwargs):
+def broadcast_message(instance, is_chat, operation_suffix, add_message_details=False, **kwargs):
     operation, message_holder, message_type, chat_type, chat_id, chat_key = define_variables(instance, operation_suffix, is_chat, is_message=True)
     channel_layer = get_channel_layer()
     if add_message_details:
@@ -65,8 +69,12 @@ def broadcast_message(sender, instance, is_chat, operation_suffix, add_message_d
         }
     else:
         message = None
+    if is_chat:
+        username = instance.chat.user.username
+    else:
+        username = instance.user_group_copy.member.member.username
     async_to_sync(channel_layer.group_send)(
-        f'user_{instance.chat.user.username}',
+        f'user_{username}',
         {
             'type': 'broadcast',
             'operation': operation,
@@ -81,19 +89,19 @@ def broadcast_message(sender, instance, is_chat, operation_suffix, add_message_d
     )
 
 @receiver(on_message_created)
-def broadcast_created_message(sender, instance, is_chat, **kwargs):
-    broadcast_message(sender, instance, is_chat, 'CREATED', add_message_details=True)
+def broadcast_created_message(instance, is_chat, **kwargs):
+    broadcast_message(instance, is_chat, 'CREATED', add_message_details=True)
     
 @receiver(on_message_updated)
-def broadcast_updated_message(sender, instance, is_chat, **kwargs):
-    broadcast_message(sender, instance, is_chat, 'UPDATED', add_message_details=True)
+def broadcast_updated_message(instance, is_chat, **kwargs):
+    broadcast_message(instance, is_chat, 'UPDATED', add_message_details=True)
     
 @receiver(on_message_unsent)
-def broadcast_unsent_message(sender, instance, is_chat, **kwargs):
-    broadcast_message(sender, instance, is_chat, 'UNSENT')
+def broadcast_unsent_message(instance, is_chat, **kwargs):
+    broadcast_message(instance, is_chat, 'UNSENT')
 
 @receiver(on_message_deleted)
-def broadcast_deleted_message(sender, message_id, is_chat, chat_id, username, **kwargs):
+def broadcast_deleted_message(message_id, is_chat, chat_id, username, **kwargs):
     operation, message_holder, message_type, chat_type, _, chat_key = define_message_variables(is_chat, None, 'DELETED')
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
@@ -111,11 +119,11 @@ def broadcast_deleted_message(sender, message_id, is_chat, chat_id, username, **
     )
     
 @receiver(on_message_read)
-def broadcast_read_message(sender, instance, is_chat, **kwargs):
-    broadcast_message(sender, instance, is_chat, 'READ')
+def broadcast_read_message(instance, is_chat, **kwargs):
+    broadcast_message(instance, is_chat, 'READ')
 
 @receiver(on_notification_created)
-def broadcast_created_notification(sender, instance, **kwargs):
+def broadcast_created_notification(instance, **kwargs):
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         f'user_{instance.receiver.username}',
@@ -136,7 +144,7 @@ def broadcast_created_notification(sender, instance, **kwargs):
     )
     
 @receiver(on_chat_deleted)
-def broadcast_deleted_chat(sender, instance, is_chat, **kwargs):
+def broadcast_deleted_chat(instance, is_chat, **kwargs):
     operation, message_holder, message_type, chat_type, chat_id, chat_key = define_variables(instance, 'DELETED', is_chat)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
@@ -147,5 +155,76 @@ def broadcast_deleted_chat(sender, instance, is_chat, **kwargs):
             chat_key: {
                 'id': Node.to_global_id(chat_type, chat_id),
             }
+        }
+    )
+
+@receiver(on_group_updated)
+def broadcast_updated_group(instance, **kwargs):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'user_{instance.member.member.username}',
+        {
+            'type': 'broadcast',
+            'operation': 'GROUP_UPDATED',
+            'groupCopy': {
+                'id': Node.to_global_id('UserGroupMemberCopyType', instance.id),
+                'group': {
+                    'id': Node.to_global_id('UserGroupType', instance.member.user_group.id),
+                    'title': instance.member.user_group.title,
+                    'description': instance.member.user_group.description,
+                    'groupImage': instance.member.user_group.group_image.url,
+                }
+            }
+        }
+    )
+    
+@receiver(on_group_removed)
+def broadcast_removed_group(username, group_id, **kwargs):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'user_{username}',
+        {
+            'type': 'broadcast',
+            'operation': 'GROUP_PERMANENTLY_REMOVED',
+            'groupId': group_id
+        }
+    )
+    
+@receiver(on_member_added)
+def broadcast_added_member(member_copy, new_member, username, **kwargs):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'user_{username}',
+        {
+            'type': 'broadcast',
+            'operation': 'MEMBER_ADDED',
+            'groupCopy': {
+                'id': Node.to_global_id('UserGroupMemberCopyType', member_copy.id),
+                'member': {
+                    'id': Node.to_global_id('GroupMemberType', new_member.id),
+                    'joinedAt': new_member.joined_at.isoformat(),
+                    'group_id': Node.to_global_id('UserGroupType', new_member.user_group.id),
+                    'user': {
+                        'id': Node.to_global_id('CustomUserType', new_member.member.id),
+                        'username': new_member.member.username
+                    },
+                }
+            }
+        }
+    )
+    
+@receiver(on_member_removed)
+def broadcast_removed_member(member_copy, member_id, username, removed_by_id=None, left=False, **kwargs):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'user_{username}',
+        {
+            'type': 'broadcast',
+            'operation': 'MEMBER_LEFT' if left else 'MEMBER_REMOVED',
+            'groupCopy': {
+                'id': Node.to_global_id('UserGroupMemberCopyType', member_copy.id),
+                'member_id': member_id,
+            },
+            'removedById': Node.to_global_id('CustomUserType', removed_by_id) if removed_by_id else None
         }
     )

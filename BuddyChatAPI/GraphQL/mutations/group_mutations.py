@@ -7,6 +7,8 @@ from ...models import UserGroup, GroupMember, GroupMessage, Notification, Custom
 from ..types import UserGroupType, GroupMemberType, GroupMessageType, UserGroupMemberCopyType, MessageType
 from django.utils import timezone
 from graphene.relay import Node
+from ..subscriptions.signals import on_message_created, on_message_updated, on_message_deleted, on_message_unsent, on_notification_created, on_chat_deleted, on_group_updated, on_group_removed, on_member_added, on_member_removed
+from django.db.models.signals import ModelSignal
 
 # TODO: Send signals
 class CreateGroup(graphene.Mutation):
@@ -58,6 +60,9 @@ class CreateGroupMessage(graphene.Mutation):
             group_member_copy.save()
             notification = Notification.objects.create(receiver=group_member.member, message=message)
             notification.save()
+            ModelSignal.send(on_message_created, sender=GroupMessage, instance=group_message, is_chat=False)
+            if group_member.member.id != sender_id:
+                ModelSignal.send(on_notification_created, sender=Notification, instance=notification)
         return CreateGroupMessage(message=message)
     
 class CreateGroupMember(graphene.Mutation):
@@ -75,6 +80,9 @@ class CreateGroupMember(graphene.Mutation):
         admin_member = user_group.members.get(member=info.context.user)
         validate_admin(user_group, admin_member)
         group_member = create_group_member(user_group, member_id, info)
+        for member in user_group.members.all():
+            group_member_copy = UserGroupMemberCopy.objects.get(member=member)
+            ModelSignal.send(on_member_added, member_copy=group_member_copy, new_member=group_member, username=group_member_copy.member.member.username, sender=GroupMember)
         return CreateGroupMember(group_member=group_member)
 
 class ChangeAdmin(graphene.Mutation):
@@ -126,6 +134,10 @@ class UpdateGroup(graphene.Mutation):
         if title or description or group_image:
             user_group.updated_at = timezone.now()
             user_group.save()
+            
+            for member in user_group.members.all():
+                group_member_copy = UserGroupMemberCopy.objects.get(member=member)
+                ModelSignal.send(on_group_updated, sender=UserGroupMemberCopy, instance=group_member_copy)
         return UpdateGroup(group_copy=user_group_copy)
 
 class DeleteGroup(graphene.Mutation):
@@ -141,6 +153,7 @@ class DeleteGroup(graphene.Mutation):
         validate_group_copy_member(user_group_copy, info.context.user)
         for group_message in user_group_copy.group_messages.all():
             group_message.delete()
+        ModelSignal.send(on_chat_deleted, sender=UserGroupMemberCopy, instance=user_group_copy, is_chat=False)
         return DeleteGroup(success=True)
 
 class UpdateGroupMessage(graphene.Mutation):
@@ -153,14 +166,20 @@ class UpdateGroupMessage(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_message_id, content):
-        group_message: GroupMessage = get_node_or_error(info, group_message_id)
-        group_member = group_message.user_group_copy.member
-        validate_group_message_sender(group_member, group_message.message.sender.id)
+        user_group_message: GroupMessage = get_node_or_error(info, group_message_id)
+        group_member = user_group_message.user_group_copy.member
+        validate_group_message_sender(group_member, user_group_message.message.sender.id)
         content = bleach.clean(content)
         validate_message_content(content)
-        group_message.message.content = content
-        group_message.message.save()
-        return UpdateGroupMessage(group_message=group_message)
+        user_group_message.message.content = content
+        user_group_message.message.save()
+        # Send signals to update the message for all group members
+        user_group = user_group_message.user_group_copy.member.user_group
+        for member in user_group.members.all():
+            group_member_copy = UserGroupMemberCopy.objects.get(member=member)
+            group_message = GroupMessage.objects.get(message=user_group_message.message, user_group_copy=group_member_copy)
+            ModelSignal.send(on_message_updated, sender=GroupMessage, instance=group_message, is_chat=False)
+        return UpdateGroupMessage(group_message=user_group_message)
 
 class DeleteGroupMessage(graphene.Mutation):
     """A mutation to delete a group message. Deletes the message for the group copy of the current user"""
@@ -173,10 +192,12 @@ class DeleteGroupMessage(graphene.Mutation):
     def mutate(self, info, group_message_id):
         group_message = get_node_or_error(info, group_message_id)
         last_message_id = group_message.user_group_copy.last_message.id
+        chat_id = group_message.user_group_copy.id
         group_message.delete()
         if last_message_id == group_message.id:
             group_message.user_group_copy.last_message = group_message.user_group_copy.group_messages.first()
             group_message.user_group_copy.save()
+        ModelSignal.send(on_message_deleted, sender=GroupMessage, message_id=group_message_id, is_chat=False, chat_id=chat_id, username=info.context.user.username)
         return DeleteGroupMessage(success=True)
 
 class UnsendGroupMessage(graphene.Mutation):
@@ -193,15 +214,19 @@ class UnsendGroupMessage(graphene.Mutation):
         validate_group_message_sender(group_member, group_message.message.sender.id)
         last_message_id = group_message.user_group_copy.last_message.message.id
         user_group = group_message.user_group_copy.member.user_group
-        
+        group_messages = []
         # Update last message for all group members
         for member in user_group.members.all():
             group_member_copy = UserGroupMemberCopy.objects.get(member=member)
             if last_message_id == group_member_copy.last_message.message.id:
                 group_member_copy.last_message = group_member_copy.group_messages.first()
                 group_member_copy.save()
+            group_messages += group_member_copy.group_messages.filter(message=group_message.message)
                 
         group_message.message.delete()
+        for group_message in group_messages:
+            ModelSignal.send(on_message_unsent, sender=GroupMessage, instance=group_message, is_chat=False)
+        
         return UnsendGroupMessage(success=True)
     
 class RemoveGroupMember(graphene.Mutation):
@@ -223,6 +248,9 @@ class RemoveGroupMember(graphene.Mutation):
         group_member.delete()
         user_group.members_count -= 1
         user_group.save()
+        for member in user_group.members.all():
+            group_member_copy = UserGroupMemberCopy.objects.get(member=member)
+            ModelSignal.send(on_member_removed, member_copy=group_member_copy, member_id=member_id, username=group_member_copy.member.member.username, removed_by_id=info.context.user.id, sender=GroupMember)
         return RemoveGroupMember(success=True)
 
 class LeaveGroup(graphene.Mutation):
@@ -235,11 +263,16 @@ class LeaveGroup(graphene.Mutation):
     @login_required
     def mutate(self, info, group_copy_id):
         group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
+        member_id = group_copy.member.id
+        node_id = Node.to_global_id('GroupMemberType', member_id)
         user_group = group_copy.member.user_group
         group_member = user_group.members.get(member=info.context.user)
         group_member.delete()
         user_group.members_count -= 1
         user_group.save()
+        for member in user_group.members.all():
+            group_member_copy = UserGroupMemberCopy.objects.get(member=member)
+            ModelSignal.send(on_member_removed, member_copy=group_member_copy, member_id=node_id, username=group_member_copy.member.member.username, left=True, sender=GroupMember)
         return LeaveGroup(success=True)
 
 class RemoveGroup(graphene.Mutation):
@@ -251,10 +284,14 @@ class RemoveGroup(graphene.Mutation):
     
     @login_required
     def mutate(self, info, group_copy_id):
-        user_group_copy = get_node_or_error(info, group_copy_id)
+        user_group_copy: UserGroupMemberCopy = get_node_or_error(info, group_copy_id)
         user_group = user_group_copy.member.user_group
         validate_group_creator(user_group, info.context.user)
+        group_id = Node.to_global_id('UserGroupType', user_group.id)
+        usernames = [member.member.username for member in user_group.members.all()]
         user_group.delete()
+        for username in usernames:
+            ModelSignal.send(on_group_removed, username=username, group_id=group_id, sender=UserGroup)
         return RemoveGroup(success=True)
 
 class SetArchiveGroup(graphene.Mutation):

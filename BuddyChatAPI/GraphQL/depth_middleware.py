@@ -20,4 +20,4 @@ class QueryDepthMiddleware:
             return depth
         return max([self._get_depth(selection, depth + 1) for selection in node.selection_set.selections])
 
-depth_middleware = QueryDepthMiddleware(10)
+depth_middleware = QueryDepthMiddleware(20)
