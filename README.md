@@ -13,18 +13,18 @@
   - [Message Operations Table](#message-operations-table)
   - [Example Message](#example-message)
 - [Types](#types)
-  - [CustomUserType](#customusertype)
-  - [PhoneNumberType](#phonenumbertype)
-  - [PhoneNumberInputType](#phonenumberinputtype)
-  - [MessageType](#messagetype)
-  - [ChatType](#chattype)
-  - [ChatMessageType](#chatmessagetype)
-  - [UserGroupType](#usergrouptype)
-  - [GroupMessageType](#groupmessagetype)
-  - [GroupMemberType](#groupmembertype)
-  - [AttachmentType](#attachmenttype)
-  - [NotificationType](#notificationtype)
-  - [UserGroupMemberCopyType](#usergroupmembercopytype)
+  - [CustomUser](#customuser)
+  - [PhoneNumber](#phonenumber)
+  - [PhoneNumberInput](#phonenumberinput)
+  - [Message](#message)
+  - [Chat](#chat)
+  - [ChatMessage](#chatmessage)
+  - [UserGroup](#usergroup)
+  - [GroupMessage](#groupmessage)
+  - [GroupMember](#groupmember)
+  - [Attachment](#attachment)
+  - [Notification](#notification)
+  - [UserGroupMemberCopy](#usergroupmembercopy)
 - [Mutation Types](#mutation-types)
   - [CreateGroup](#creategroup)
   - [CreateGroupMessage](#creategroupmessage)
@@ -57,7 +57,7 @@
   - [SetChatArchived](#setchatarchived)
   - [SetChatMessageAsRead](#setchatmessageasread)
 - [Subscription Types](#subscription-types)
-  - [SubscriptionType](#subscriptiontype)
+  - [Subscribe](#subscribe)
 - [Other Features](#other-features)
   - [Throttling](#throttling)
   - [Pagination](#pagination)
@@ -208,46 +208,46 @@ The API endpoint is `/graphql`.
 
 ## Types
 
-### CustomUserType
+### CustomUser
 
 ```graphql
-type CustomUserType {
+type CustomUser {
     id: ID!
     username: String!
     firstName: String!
     lastName: String!
     email: String!
-    phoneNumbers: [PhoneNumberType]
-    chats: [ChatType]
-    notifications: [NotificationType]
+    phoneNumbers: [PhoneNumber]
+    chats: [Chat]
+    notifications: [Notification]
 }
 ```
 
 Description: The user type. It contains the user's information.
 
-### PhoneNumberType
+### PhoneNumber
 
 ```graphql
-type PhoneNumberType {
+type PhoneNumber {
     id: ID!
     number: String!
     countryCode: String!
 }
 ```
 
-### PhoneNumberInputType
+### PhoneNumberInput
 
 ```graphql
-input PhoneNumberInputType {
+input PhoneNumberInput {
     number: String!
     countryCode: String!
 }
 ```
 
-### MessageType
+### Message
 
 ```graphql
-type MessageType {
+type Message {
     id: ID!
     content: String!
     readAt: DateTime
@@ -256,64 +256,64 @@ type MessageType {
 
 Description: The root message type which is the dependent type for the chat message and group message types.
 
-### ChatType
+### Chat
 
 ```graphql
-type ChatType {
+type Chat {
     id: ID!
-    user: CustomUserType!
-    otherUser: CustomUserType!
+    user: CustomUser!
+    otherUser: CustomUser!
     archived: Boolean!
-    chat_messages: [ChatMessageType]
+    chat_messages: [ChatMessage]
 }
 ```
 
 Description: The chat type. Each user has a chat copy for each other user they have chatted with.
 
-### ChatMessageType
+### ChatMessage
 
 ```graphql
-type ChatMessageType {
+type ChatMessage {
     id: ID!
-    message: MessageType!
-    chat: ChatType!
+    message: Message!
+    chat: Chat!
 }
 ```
 
 Description: The chat message type. It contains the chat message information.
 
-### UserGroupType
+### UserGroup
 
 ```graphql
-type UserGroupType {
+type UserGroup {
     id: ID!
     title: String!  
     description: String!
-    members: [GroupMemberType]
+    members: [GroupMember]
 }
 ```
 
-Description: The root user group type. It contains the main information. GroupMemberType depends on this type.
+Description: The root user group type. It contains the main information. GroupMember depends on this type.
 
-### GroupMessageType
+### GroupMessage
 
 ```graphql
-type GroupMessageType {
+type GroupMessage {
     id: ID!
-    message: MessageType!
-    group_copy: UserGroupMemberCopyType!
+    message: Message!
+    group_copy: UserGroupMemberCopy!
 }
 ```
 
 Description: The group message type. It contains the group message information.
 
-### GroupMemberType
+### GroupMember
 
 ```graphql
-type GroupMemberType {
+type GroupMember {
     id: ID!
-    user: CustomUserType!
-    group: UserGroupType!
+    user: CustomUser!
+    group: UserGroup!
     isAdmin: Boolean!
     joinedAt: DateTime!
 }
@@ -321,34 +321,34 @@ type GroupMemberType {
 
 Description: The group member type. It contains the group member information.
 
-### AttachmentType
+### Attachment
 
 ```graphql
-type AttachmentType {
+type Attachment {
     id: ID!
     file: String!
-    message: MessageType!
+    message: Message!
 }
 ```
 
-### NotificationType
+### Notification
 
 ```graphql
-type NotificationType {
+type Notification {
     id: ID!
-    message: MessageType!
+    message: Message!
     readAt: DateTime
 }
 ```
 
-### UserGroupMemberCopyType
+### UserGroupMemberCopy
 
 ```graphql
-type UserGroupMemberCopyType {
+type UserGroupMemberCopy {
     id: ID!
-    member: GroupMemberType!
+    member: GroupMember!
     isArchived: Boolean!
-    group_messages: [GroupMessageType]
+    group_messages: [GroupMessage]
 }
 ```
 
@@ -360,7 +360,7 @@ Description: The user group member copy type. The user copy of the group, so tha
 
 ```graphql
 type CreateGroup {
-    userGroup: UserGroupType
+    userGroup: UserGroup
 }
 ```
 
@@ -370,7 +370,7 @@ Description: A mutation to create a group. The creator is automatically added as
 
 ```graphql
 type CreateGroupMessage {
-    message: GroupMessageType
+    message: GroupMessage
 }
 ```
 
@@ -380,7 +380,7 @@ Description: A mutation to create a group message. A group message is created fo
 
 ```graphql
 type CreateGroupMember {
-    groupMember: GroupMemberType
+    groupMember: GroupMember
 }
 ```
 
@@ -390,7 +390,7 @@ Description: A mutation to add a member to a group.
 
 ```graphql
 type ChangeAdmin {
-    groupMember: GroupMemberType
+    groupMember: GroupMember
 }
 ```
 
@@ -400,7 +400,7 @@ Description: A mutation to change the admin status of a group member.
 
 ```graphql
 type UpdateGroup {
-    groupCopy: UserGroupMemberCopyType
+    groupCopy: UserGroupMemberCopy
 }
 ```
 
@@ -420,7 +420,7 @@ Description: A mutation to delete a group. Messages are deleted for the group co
 
 ```graphql
 type UpdateGroupMessage {
-    groupMessage: GroupMessageType
+    groupMessage: GroupMessage
 }
 ```
 
@@ -480,7 +480,7 @@ Description: A mutation to remove a group permanently.
 
 ```graphql
 type SetArchiveGroup {
-    groupCopy: UserGroupMemberCopyType
+    groupCopy: UserGroupMemberCopy
 }
 ```
 
@@ -490,7 +490,7 @@ Description: A mutation to archive a group.
 
 ```graphql
 type SetNotificationAsRead {
-    notification: NotificationType
+    notification: Notification
 }
 ```
 
@@ -500,7 +500,7 @@ Description: A mutation to set a notification as read.
 
 ```graphql
 type UpdateUser {
-    user: CustomUserType
+    user: CustomUser
 }
 ```
 
@@ -510,7 +510,7 @@ Description: Mutation to update the current user's data.
 
 ```graphql
 type ChangePassword {
-    user: CustomUserType
+    user: CustomUser
 }
 ```
 
@@ -530,8 +530,8 @@ Description: Mutation to delete the current user.
 
 ```graphql
 type CreateUser {
-    user: CustomUserType
-    phoneNumber: PhoneNumberType
+    user: CustomUser
+    phoneNumber: PhoneNumber
 }
 ```
 
@@ -541,7 +541,7 @@ Description: Mutation to create a user with a phone number.
 
 ```graphql
 type AddPhoneNumber {
-    phoneNumber: PhoneNumberType
+    phoneNumber: PhoneNumber
 }
 ```
 
@@ -561,8 +561,8 @@ Description: Mutation to remove a phone number from the current user.
 
 ```graphql
 type CreateChat {
-    chat: ChatType
-    otherChat: ChatType
+    chat: Chat
+    otherChat: Chat
 }
 ```
 
@@ -572,7 +572,7 @@ Description: Mutation to create two chat copies for two users.
 
 ```graphql
 type CreateSelfChat {
-    chat: ChatType
+    chat: Chat
 }
 ```
 
@@ -582,7 +582,7 @@ Description: Mutation to create a chat for the user.
 
 ```graphql
 type CreateChatMessage {
-    chatMessage: ChatMessageType
+    chatMessage: ChatMessage
 }
 ```
 
@@ -592,7 +592,7 @@ Description: Mutation to create a chat message. A chat message is created for ea
 
 ```graphql
 type UpdateChatMessage {
-    chatMessage: ChatMessageType
+    chatMessage: ChatMessage
 }
 ```
 
@@ -632,7 +632,7 @@ Description: Mutation to delete a chat. Messages are deleted for the chat copy o
 
 ```graphql
 type SetChatArchived {
-    chat: ChatType
+    chat: Chat
 }
 ```
 
@@ -642,7 +642,7 @@ Description: Mutation to archive or unarchive a chat.
 
 ```graphql
 type SetChatMessageAsRead {
-    chatMessage: ChatMessageType
+    chatMessage: ChatMessage
 }
 ```
 
@@ -650,15 +650,15 @@ Description: Mutation to set a chat message as read.
 
 ## Subscription Types
 
-### SubscriptionType
+### Subscribe
 
 ```graphql
-type SubsctiptionType {
+type Subscribe {
     success: Boolean
 }
 ```
 
-Description: The subscription type.
+Description: The success message is returned when the client subscribes to the messages.
 
 ## Other Features
 
